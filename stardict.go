@@ -1,0 +1,157 @@
+// Copyright 2021 Google LLC
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
+package stardict
+
+import (
+	"fmt"
+	"io/fs"
+	"path/filepath"
+	"strconv"
+)
+
+type Stardict struct {
+	ifo *Ifo
+
+	version       string
+	bookname      string
+	wordcount     int64
+	synwordcount  int64
+	idxfilesize   int64
+	idxoffsetbits int64
+	author        string
+	email         string
+	website       string
+	description   string
+}
+
+// OpenAll opens all dictionaries under a directory. This function will return
+// all successfully opened dictionaries along with any errors that occurred.
+func OpenAll(path string) ([]*Stardict, []error) {
+	var dicts []*Stardict
+	var errs []error
+	if err := filepath.WalkDir(path, func(path string, info fs.DirEntry, err error) error {
+		// Walking the file path will ignore errors.
+		if err != nil {
+			errs = append(errs, err)
+			return nil
+		}
+		if !info.IsDir() && filepath.Ext(info.Name()) == ".ifo" {
+			dict, err := Open(path)
+			if err != nil {
+				errs = append(errs, err)
+				return nil
+			}
+			dicts = append(dicts, dict)
+		}
+		return nil
+	}); err != nil {
+		errs = append(errs, err)
+		return nil, errs
+	}
+	return dicts, errs
+}
+
+// Open opens a Stardict dictionary from the given .ifo file path.
+func Open(path string) (*Stardict, error) {
+	ifo, err := NewIfo(path)
+	if err != nil {
+		return nil, err
+	}
+
+	s := &Stardict{
+		ifo: ifo,
+	}
+
+	// Validate the version
+	s.version = ifo.Value("version")
+	switch s.version {
+	case "2.4.2":
+	case "3.0.0":
+	default:
+		return nil, fmt.Errorf("invalid version: %v", s.version)
+	}
+
+	s.bookname = ifo.Value("bookname")
+	if s.bookname == "" {
+		return nil, fmt.Errorf("missing bookname")
+	}
+
+	s.wordcount, err = strconv.ParseInt(ifo.Value("wordcount"), 10, 64)
+	if err != nil {
+		return nil, fmt.Errorf("bad wordcount: %w", err)
+	}
+
+	s.idxfilesize, err = strconv.ParseInt(ifo.Value("idxfilesize"), 10, 64)
+	if err != nil {
+		return nil, fmt.Errorf("bad idxfilesize: %w", err)
+	}
+
+	idxoffsetbits := ifo.Value("idxfilesize")
+	if idxoffsetbits != "" && s.version == "3.0.0" {
+		s.idxoffsetbits, err = strconv.ParseInt(idxoffsetbits, 10, 64)
+		return nil, fmt.Errorf("bad idxoffsetbits: %w", err)
+	}
+
+	// TODO: .syn file.
+	synwordcount := ifo.Value("synwordcount")
+	if synwordcount != "" {
+		s.synwordcount, err = strconv.ParseInt(synwordcount, 10, 64)
+		return nil, fmt.Errorf("bad synwordcount: %w", err)
+	}
+
+	// TODO: sametypesequence
+
+	s.author = ifo.Value("author")
+	s.email = ifo.Value("email")
+	s.description = ifo.Value("description")
+	s.website = ifo.Value("website")
+
+	return s, nil
+}
+
+// Bookname returns the dictionary name.
+func (s *Stardict) Bookname() string {
+	return s.bookname
+}
+
+// Description returns the dictionary description.
+func (s *Stardict) Description() string {
+	return s.description
+}
+
+// Author returns the dictionary author.
+func (s *Stardict) Author() string {
+	return s.author
+}
+
+// Email returns the dictionary contact email.
+func (s *Stardict) Email() string {
+	return s.email
+}
+
+// Website returns the dictionary website url.
+func (s *Stardict) Website() string {
+	return s.website
+}
+
+// WordCount returns the dictionary word count.
+func (s *Stardict) WordCount() int64 {
+	return s.wordcount
+}
+
+// Version returns the dictionary format version.
+func (s *Stardict) Version() string {
+	return s.version
+}
