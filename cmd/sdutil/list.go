@@ -19,19 +19,31 @@ import (
 	"os"
 
 	"github.com/spf13/cobra"
+
+	"github.com/ianlewis/go-stardict"
 )
 
-var rootCmd = &cobra.Command{
-	Use:   "sdutil [COMMAND]",
-	Short: "sdutil is a utility for stardict dictionaries",
-	Long:  `A utility for stardict dictionaries.`,
-}
+var listCmd = &cobra.Command{
+	Use:   "list [DIR]",
+	Short: "List dictionaries",
+	Long:  `List all dictionaries in a directory.`,
+	Args:  cobra.ExactArgs(1),
+	Run: func(cmd *cobra.Command, args []string) {
+		dicts, errs := stardict.OpenAll(args[0])
+		for _, err := range errs {
+			fmt.Fprintln(os.Stderr, err)
+		}
 
-func main() {
-	rootCmd.AddCommand(listCmd)
+		for _, dict := range dicts {
+			fmt.Printf("Name         %s\n", dict.Bookname())
+			fmt.Printf("Author:      %s\n", dict.Author())
+			fmt.Printf("Email:       %s\n", dict.Email())
+			fmt.Printf("Word Count:  %d\n", dict.WordCount())
+			fmt.Println()
+		}
 
-	if err := rootCmd.Execute(); err != nil {
-		fmt.Fprintln(os.Stderr, err)
-		os.Exit(1)
-	}
+		if len(errs) > 0 {
+			os.Exit(1)
+		}
+	},
 }
