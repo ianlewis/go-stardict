@@ -29,19 +29,21 @@ const ifoMagic = "StarDict's dict ifo file"
 
 // Stardict is a stardict dictionary.
 type Stardict struct {
-	ifo *Ifo
-	idx *Idx
+	ifo  *Ifo
+	idx  *Idx
+	dict *Dict
 
-	version       string
-	bookname      string
-	wordcount     int64
-	synwordcount  int64
-	idxfilesize   int64
-	idxoffsetbits int64
-	author        string
-	email         string
-	website       string
-	description   string
+	version          string
+	bookname         string
+	wordcount        int64
+	synwordcount     int64
+	idxfilesize      int64
+	idxoffsetbits    int64
+	author           string
+	email            string
+	website          string
+	description      string
+	sametypesequence []WordType
 }
 
 // OpenAll opens all dictionaries under a directory. This function will return
@@ -134,49 +136,35 @@ func Open(path string) (*Stardict, error) {
 	synwordcount := ifo.Value("synwordcount")
 	if synwordcount != "" {
 		s.synwordcount, err = strconv.ParseInt(synwordcount, 10, 64)
-		return nil, fmt.Errorf("bad synwordcount: %w", err)
+		if err != nil {
+			return nil, fmt.Errorf("bad synwordcount: %w", err)
+		}
 	}
 
-	// TODO: sametypesequence
+	sametypesequence := ifo.Value("sametypesequence")
+	if sametypesequence != "" {
+		for _, r := range sametypesequence {
+			s.sametypesequence = append(s.sametypesequence, WordType(r))
+		}
+	}
 
 	s.author = ifo.Value("author")
 	s.email = ifo.Value("email")
 	s.description = ifo.Value("description")
 	s.website = ifo.Value("website")
 
-	// Open the index file.
-	/////////////////////////
-
 	// TODO: .syn file.
-	idxExts := []string{".idx.gz", ".idx", ".IDX", ".IDX.gz", ".IDX.GZ"}
-	var idxPath string
-	for _, ext := range idxExts {
-		idxPath = baseName + ext
-		if _, err := os.Stat(idxPath); err == nil {
-			break
-		}
-	}
-	if idxPath == "" {
-		return nil, fmt.Errorf("no index found")
-	}
 
-	var r io.ReadCloser
-	r, err = os.Open(idxPath)
+	// Open the index file.
+	s.idx, err = openIdx(baseName, s.idxoffsetbits)
 	if err != nil {
-		return nil, fmt.Errorf("error opening %q: %w", idxPath, err)
+		return nil, err
 	}
 
-	idxExt := filepath.Ext(idxPath)
-	if idxExt == ".gz" || idxExt == ".GZ" {
-		r, err = gzip.NewReader(r)
-		if err != nil {
-			return nil, fmt.Errorf("error opening %q: %w", idxPath, err)
-		}
-	}
-
-	s.idx, err = NewIdx(r, s.idxoffsetbits)
+	// Open the dict file.
+	s.dict, err = openDict(baseName, s.sametypesequence)
 	if err != nil {
-		return nil, fmt.Errorf("error reading %q: %w", idxPath, err)
+		return nil, err
 	}
 
 	return s, nil
@@ -222,7 +210,85 @@ func (s *Stardict) Index() *Idx {
 	return s.idx
 }
 
+// Index returns the dictionary's index.
+func (s *Stardict) Article(e *Entry) (Article, error) {
+	return s.dict.Article(e)
+}
+
 // Close closes all dictionary resources.
 func (s *Stardict) Close() error {
 	return s.idx.Close()
+}
+
+func openIdx(baseName string, idxoffsetbits int64) (*Idx, error) {
+	// TODO: .syn file.
+	idxExts := []string{".idx.gz", ".idx", ".IDX", ".IDX.gz", ".IDX.GZ"}
+	var idxPath string
+	for _, ext := range idxExts {
+		idxPath = baseName + ext
+		if _, err := os.Stat(idxPath); err == nil {
+			break
+		}
+	}
+	if idxPath == "" {
+		return nil, fmt.Errorf("no index found")
+	}
+
+	var r io.ReadCloser
+	var err error
+	r, err = os.Open(idxPath)
+	if err != nil {
+		return nil, fmt.Errorf("error opening %q: %w", idxPath, err)
+	}
+
+	idxExt := filepath.Ext(idxPath)
+	if idxExt == ".gz" || idxExt == ".GZ" {
+		r, err = gzip.NewReader(r)
+		if err != nil {
+			return nil, fmt.Errorf("error opening %q: %w", idxPath, err)
+		}
+	}
+
+	idx, err := NewIdx(r, idxoffsetbits)
+	if err != nil {
+		return nil, fmt.Errorf("error reading %q: %w", idxPath, err)
+	}
+	return idx, nil
+}
+
+func openDict(baseName string, sametypesequence []WordType) (*Dict, error) {
+	dictExts := []string{".dict.dz", ".dict", ".DICT", ".DICT.dz", ".DICT.DZ"}
+	var dictPath string
+	for _, ext := range dictExts {
+		dictPath = baseName + ext
+		if _, err := os.Stat(dictPath); err == nil {
+			break
+		}
+	}
+	if dictPath == "" {
+		return nil, fmt.Errorf("no dict found")
+	}
+
+	var r io.ReadSeekCloser
+	var err error
+	r, err = os.Open(dictPath)
+	if err != nil {
+		return nil, fmt.Errorf("error opening %q: %w", dictPath, err)
+	}
+
+	// TODO: Support .dz
+	// dictExt := filepath.Ext(dictPath)
+	// if dictExt == ".dz" || dictExt == ".DZ" {
+	// 	r, err = gzip.NewReader(r)
+	// 	if err != nil {
+	// 		return nil, fmt.Errorf("error opening %q: %w", dictPath, err)
+	// 	}
+	// }
+
+	dict, err := NewDict(r, sametypesequence)
+	if err != nil {
+		return nil, fmt.Errorf("error reading %q: %w", dictPath, err)
+	}
+	return dict, nil
+
 }

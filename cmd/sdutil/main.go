@@ -29,7 +29,7 @@ var rootCmd = &cobra.Command{
 
 func main() {
 	rootCmd.AddCommand(listCmd)
-	rootCmd.AddCommand(queryCmd)
+	rootCmd.AddCommand(queryCommand())
 
 	if err := rootCmd.Execute(); err != nil {
 		fmt.Fprintln(os.Stderr, err)

@@ -24,43 +24,80 @@ import (
 	"github.com/ianlewis/go-stardict"
 )
 
-var queryCmd = &cobra.Command{
-	Use:   "query [DIR] [QUERY]",
-	Short: "Query dictionaries",
-	Long:  `Query all dictionaries in a directory.`,
-	Args:  cobra.ExactArgs(2),
-	Run: func(cmd *cobra.Command, args []string) {
-		path := args[0]
-		query := args[1]
-
-		dicts, errs := stardict.OpenAll(path)
-		for _, err := range errs {
-			fmt.Fprintln(os.Stderr, err)
+func renderArticle(a stardict.Article) string {
+	for _, w := range a {
+		switch w.Type() {
+		case stardict.UTFTextType, stardict.HTMLType:
+			return string(w.Data())
 		}
-		defer func() {
-			for _, dict := range dicts {
-				dict.Close()
-			}
-		}()
+	}
+	return ""
+}
 
-		for _, dict := range dicts {
-			fmt.Println(dict.Bookname())
-			fmt.Println()
-			idx := dict.Index()
-			for idx.Scan() {
-				e := idx.Entry()
-				if strings.Contains(e.Word, query) {
-					fmt.Println("    " + e.Word)
-				}
-			}
-			if err := idx.Err(); err != nil {
+func indent(text, indent string) string {
+	var lines []string
+	for _, line := range strings.Split(text, "\n") {
+		if line != "" {
+			line = indent + line
+		}
+		lines = append(lines, line)
+	}
+	return strings.Join(lines, "\n")
+}
+
+func queryCommand() *cobra.Command {
+	var full bool
+
+	c := &cobra.Command{
+		Use:   "query [DIR] [QUERY]",
+		Short: "Query dictionaries",
+		Long:  `Query all dictionaries in a directory.`,
+		Args:  cobra.ExactArgs(2),
+		Run: func(cmd *cobra.Command, args []string) {
+			path := args[0]
+			query := args[1]
+
+			dicts, errs := stardict.OpenAll(path)
+			for _, err := range errs {
 				fmt.Fprintln(os.Stderr, err)
 			}
-			fmt.Println()
-		}
+			defer func() {
+				for _, dict := range dicts {
+					dict.Close()
+				}
+			}()
 
-		if len(errs) > 0 {
-			os.Exit(1)
-		}
-	},
+			for _, dict := range dicts {
+				fmt.Println(dict.Bookname())
+				fmt.Println()
+				idx := dict.Index()
+				for idx.Scan() {
+					e := idx.Entry()
+					if strings.Contains(e.Word, query) {
+						fmt.Println("  " + e.Word)
+						if full {
+							a, err := dict.Article(e)
+							if err != nil {
+								fmt.Fprintln(os.Stderr, err)
+								continue
+							}
+							fmt.Printf("%v\n", indent(renderArticle(a), "    "))
+							fmt.Println()
+						}
+					}
+				}
+				if err := idx.Err(); err != nil {
+					fmt.Fprintln(os.Stderr, err)
+				}
+				fmt.Println()
+			}
+
+			if len(errs) > 0 {
+				os.Exit(1)
+			}
+		},
+	}
+	c.Flags().BoolVarP(&full, "full", "f", false, "output full articles")
+
+	return c
 }
