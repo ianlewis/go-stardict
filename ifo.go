@@ -17,32 +17,27 @@ package stardict
 import (
 	"bufio"
 	"fmt"
-	"os"
+	"io"
 	"regexp"
 	"strings"
 )
 
-const magic = "StarDict's dict ifo file"
-
 var keyRegex = regexp.MustCompile("[a-zA-Z0-9-_]+")
 
 type Ifo struct {
+	magic    string
 	metadata map[string]string
 }
 
 // NewIfo returns a new dictionary info object from the path.
-func NewIfo(path string) (*Ifo, error) {
-	f, err := os.Open(path)
-	if err != nil {
-		return nil, err
+func NewIfo(r io.Reader) (*Ifo, error) {
+	ifo := &Ifo{
+		metadata: map[string]string{},
 	}
 
-	metadata := map[string]string{}
-	s := bufio.NewScanner(bufio.NewReader(f))
+	s := bufio.NewScanner(bufio.NewReader(r))
 	if s.Scan() {
-		if s.Text() != magic {
-			return nil, fmt.Errorf("bad magic data")
-		}
+		ifo.magic = s.Text()
 	}
 
 	i := 0
@@ -61,25 +56,22 @@ func NewIfo(path string) (*Ifo, error) {
 			return nil, fmt.Errorf("missing version")
 		}
 
-		metadata[key] = value
+		ifo.metadata[key] = value
 		i++
 	}
 	if err := s.Err(); err != nil {
 		return nil, err
 	}
 
-	return &Ifo{
-		metadata: metadata,
-	}, nil
+	return ifo, nil
 }
 
+// Magic returns the ifo file's magic string.
+func (i *Ifo) Magic() string {
+	return i.magic
+}
+
+// Value returns a value from the metadata file.
 func (i *Ifo) Value(key string) string {
 	return i.metadata[key]
-}
-
-func readKV(line string) (string, string, error) {
-	v := strings.SplitN(line, "=", 2)
-	key := strings.TrimRight(v[0], " ")
-	value := strings.TrimLeft(v[1], " ")
-	return key, value, nil
 }

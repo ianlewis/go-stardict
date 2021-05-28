@@ -17,12 +17,17 @@ package stardict
 import (
 	"fmt"
 	"io/fs"
+	"os"
 	"path/filepath"
 	"strconv"
+	"strings"
 )
+
+const ifoMagic = "StarDict's dict ifo file"
 
 type Stardict struct {
 	ifo *Ifo
+	idx *Idx
 
 	version       string
 	bookname      string
@@ -65,13 +70,29 @@ func OpenAll(path string) ([]*Stardict, []error) {
 
 // Open opens a Stardict dictionary from the given .ifo file path.
 func Open(path string) (*Stardict, error) {
-	ifo, err := NewIfo(path)
+	ext := filepath.Ext(path)
+	if ext != ".ifo" {
+		return nil, fmt.Errorf("bad extension: %v", ext)
+	}
+
+	ifoFile, err := os.Open(path)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("error opening %q: %w", path, err)
+	}
+	defer ifoFile.Close()
+
+	ifo, err := NewIfo(ifoFile)
+	if err != nil {
+		return nil, fmt.Errorf("error reading %q: %w", path, err)
+	}
+
+	if ifo.Magic() != ifoMagic {
+		return nil, fmt.Errorf("%q bad magic data", path)
 	}
 
 	s := &Stardict{
-		ifo: ifo,
+		ifo:           ifo,
+		idxoffsetbits: 32,
 	}
 
 	// Validate the version
@@ -98,13 +119,14 @@ func Open(path string) (*Stardict, error) {
 		return nil, fmt.Errorf("bad idxfilesize: %w", err)
 	}
 
-	idxoffsetbits := ifo.Value("idxfilesize")
+	idxoffsetbits := ifo.Value("idxoffsetbits")
 	if idxoffsetbits != "" && s.version == "3.0.0" {
 		s.idxoffsetbits, err = strconv.ParseInt(idxoffsetbits, 10, 64)
-		return nil, fmt.Errorf("bad idxoffsetbits: %w", err)
+		if err != nil {
+			return nil, fmt.Errorf("invalid idxoffsetbits: %w", err)
+		}
 	}
 
-	// TODO: .syn file.
 	synwordcount := ifo.Value("synwordcount")
 	if synwordcount != "" {
 		s.synwordcount, err = strconv.ParseInt(synwordcount, 10, 64)
@@ -117,6 +139,19 @@ func Open(path string) (*Stardict, error) {
 	s.email = ifo.Value("email")
 	s.description = ifo.Value("description")
 	s.website = ifo.Value("website")
+
+	// TODO: .syn file.
+	// TODO: idx.gz files.
+	idxPath := strings.TrimSuffix(path, ext) + ".idx"
+	idxFile, err := os.Open(idxPath)
+	if err != nil {
+		return nil, fmt.Errorf("error opening %q: %w", idxPath, err)
+	}
+
+	s.idx, err = NewIdx(idxFile, s.idxoffsetbits)
+	if err != nil {
+		return nil, fmt.Errorf("error reading %q: %w", idxPath, err)
+	}
 
 	return s, nil
 }
@@ -154,4 +189,14 @@ func (s *Stardict) WordCount() int64 {
 // Version returns the dictionary format version.
 func (s *Stardict) Version() string {
 	return s.version
+}
+
+// Index returns the dictionary's index.
+func (s *Stardict) Index() *Idx {
+	return s.idx
+}
+
+// Close closes all dictionary resources.
+func (s *Stardict) Close() error {
+	return s.idx.Close()
 }

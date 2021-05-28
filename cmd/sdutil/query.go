@@ -17,19 +17,23 @@ package main
 import (
 	"fmt"
 	"os"
+	"strings"
 
 	"github.com/spf13/cobra"
 
 	"github.com/ianlewis/go-stardict"
 )
 
-var listCmd = &cobra.Command{
-	Use:   "list [DIR]",
-	Short: "List dictionaries",
-	Long:  `List all dictionaries in a directory.`,
-	Args:  cobra.ExactArgs(1),
+var queryCmd = &cobra.Command{
+	Use:   "query [DIR] [QUERY]",
+	Short: "Query dictionaries",
+	Long:  `Query all dictionaries in a directory.`,
+	Args:  cobra.ExactArgs(2),
 	Run: func(cmd *cobra.Command, args []string) {
-		dicts, errs := stardict.OpenAll(args[0])
+		path := args[0]
+		query := args[1]
+
+		dicts, errs := stardict.OpenAll(path)
 		for _, err := range errs {
 			fmt.Fprintln(os.Stderr, err)
 		}
@@ -40,10 +44,18 @@ var listCmd = &cobra.Command{
 		}()
 
 		for _, dict := range dicts {
-			fmt.Printf("Name         %s\n", dict.Bookname())
-			fmt.Printf("Author:      %s\n", dict.Author())
-			fmt.Printf("Email:       %s\n", dict.Email())
-			fmt.Printf("Word Count:  %d\n", dict.WordCount())
+			fmt.Println(dict.Bookname())
+			fmt.Println()
+			idx := dict.Index()
+			for idx.Scan() {
+				e := idx.Entry()
+				if strings.Contains(e.Word, query) {
+					fmt.Println("    " + e.Word)
+				}
+			}
+			if err := idx.Err(); err != nil {
+				fmt.Fprintln(os.Stderr, err)
+			}
 			fmt.Println()
 		}
 
