@@ -28,11 +28,12 @@ type Entry struct {
 	Size   uint32
 }
 
-// Idx is a stardict dictionary index. A stardict index is a simple list of //
+// Idx is a stardict dictionary index. A stardict index is a simple list of
 // word entries and their offset and size in the dictionary file. Idx provides
 // functionality to read the index into entries and basic means for word lookup.
 // Dictionary applications that wish to provide search functionality should
-// provide their own search capabilities (e.g. fuzzy search etc.)
+// use Idx to read the index but provide their own search capabilities
+// (e.g. fuzzy search etc.)
 type Idx struct {
 	r             io.ReadCloser
 	idxoffsetbits int

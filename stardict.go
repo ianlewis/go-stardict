@@ -15,7 +15,9 @@
 package stardict
 
 import (
+	"compress/gzip"
 	"fmt"
+	"io"
 	"io/fs"
 	"os"
 	"path/filepath"
@@ -25,6 +27,7 @@ import (
 
 const ifoMagic = "StarDict's dict ifo file"
 
+// Stardict is a stardict dictionary.
 type Stardict struct {
 	ifo *Ifo
 	idx *Idx
@@ -52,7 +55,7 @@ func OpenAll(path string) ([]*Stardict, []error) {
 			errs = append(errs, err)
 			return nil
 		}
-		if !info.IsDir() && filepath.Ext(info.Name()) == ".ifo" {
+		if !info.IsDir() && (filepath.Ext(info.Name()) == ".ifo" || filepath.Ext(info.Name()) == ".IFO") {
 			dict, err := Open(path)
 			if err != nil {
 				errs = append(errs, err)
@@ -70,9 +73,10 @@ func OpenAll(path string) ([]*Stardict, []error) {
 
 // Open opens a Stardict dictionary from the given .ifo file path.
 func Open(path string) (*Stardict, error) {
-	ext := filepath.Ext(path)
-	if ext != ".ifo" {
-		return nil, fmt.Errorf("bad extension: %v", ext)
+	ifoExt := filepath.Ext(path)
+	baseName := strings.TrimSuffix(path, ifoExt)
+	if ifoExt != ".ifo" && ifoExt != ".IFO" {
+		return nil, fmt.Errorf("bad extension: %v", ifoExt)
 	}
 
 	ifoFile, err := os.Open(path)
@@ -140,15 +144,37 @@ func Open(path string) (*Stardict, error) {
 	s.description = ifo.Value("description")
 	s.website = ifo.Value("website")
 
+	// Open the index file.
+	/////////////////////////
+
 	// TODO: .syn file.
-	// TODO: idx.gz files.
-	idxPath := strings.TrimSuffix(path, ext) + ".idx"
-	idxFile, err := os.Open(idxPath)
+	idxExts := []string{".idx.gz", ".idx", ".IDX", ".IDX.gz", ".IDX.GZ"}
+	var idxPath string
+	for _, ext := range idxExts {
+		idxPath = baseName + ext
+		if _, err := os.Stat(idxPath); err == nil {
+			break
+		}
+	}
+	if idxPath == "" {
+		return nil, fmt.Errorf("no index found")
+	}
+
+	var r io.ReadCloser
+	r, err = os.Open(idxPath)
 	if err != nil {
 		return nil, fmt.Errorf("error opening %q: %w", idxPath, err)
 	}
 
-	s.idx, err = NewIdx(idxFile, s.idxoffsetbits)
+	idxExt := filepath.Ext(idxPath)
+	if idxExt == ".gz" || idxExt == ".GZ" {
+		r, err = gzip.NewReader(r)
+		if err != nil {
+			return nil, fmt.Errorf("error opening %q: %w", idxPath, err)
+		}
+	}
+
+	s.idx, err = NewIdx(r, s.idxoffsetbits)
 	if err != nil {
 		return nil, fmt.Errorf("error reading %q: %w", idxPath, err)
 	}
