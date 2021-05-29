@@ -1,6 +1,8 @@
 # go-stardict
 
-[![Go Reference](https://pkg.go.dev/badge/github.com/ianlewis/go-stardict.svg)](https://pkg.go.dev/github.com/ianlewis/go-stardict) [![Go Report Card](https://goreportcard.com/badge/github.com/ianlewis/go-stardict)](https://goreportcard.com/report/github.com/ianlewis/go-stardict)
+[![Go Reference](https://pkg.go.dev/badge/github.com/ianlewis/go-stardict.svg)](https://pkg.go.dev/github.com/ianlewis/go-stardict)
+[![Tests](https://github.com/ianlewis/go-stardict/actions/workflows/tests.yml/badge.svg)](https://github.com/ianlewis/go-stardict/actions/workflows/tests.yml)
+[![Go Report Card](https://goreportcard.com/badge/github.com/ianlewis/go-stardict)](https://goreportcard.com/report/github.com/ianlewis/go-stardict)
 
 A stardict dictionary library for Go.
 
