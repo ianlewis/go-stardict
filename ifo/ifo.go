@@ -61,6 +61,9 @@ func New(r io.Reader) (*Ifo, error) {
 		ifo.metadata[key] = value
 		i++
 	}
+	if len(ifo.metadata) == 0 {
+		return nil, fmt.Errorf("missing version")
+	}
 	if err := s.Err(); err != nil {
 		return nil, err
 	}
