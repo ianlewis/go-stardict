@@ -58,18 +58,6 @@ func New(r io.Reader, idxoffsetbits int64) (*Idx, error) {
 	return idx, nil
 }
 
-// Prefix search searches entries by prefix.
-func (idx *Idx) PrefixSearch(str string) []*Word {
-	// TODO: implement binary search over idx.words
-	var result []*Word
-	for _, e := range idx.words {
-		if strings.HasPrefix(strings.ToLower(e.Word), strings.ToLower(str)) {
-			result = append(result, e)
-		}
-	}
-	return result
-}
-
 // FullTextSearch searches full text of index entries.
 func (idx *Idx) FullTextSearch(str string) []*Word {
 	var result []*Word
