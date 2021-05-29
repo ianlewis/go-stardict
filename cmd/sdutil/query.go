@@ -61,33 +61,26 @@ func queryCommand() *cobra.Command {
 			for _, err := range errs {
 				fmt.Fprintln(os.Stderr, err)
 			}
-			defer func() {
-				for _, dict := range dicts {
-					dict.Close()
-				}
-			}()
 
 			for _, dict := range dicts {
 				fmt.Println(dict.Bookname())
 				fmt.Println()
-				idx := dict.Index()
-				for idx.Scan() {
-					e := idx.Entry()
-					if strings.Contains(e.Word, query) {
-						fmt.Println("  " + e.Word)
-						if full {
-							a, err := dict.Article(e)
-							if err != nil {
-								fmt.Fprintln(os.Stderr, err)
-								continue
-							}
-							fmt.Printf("%v\n", indent(renderArticle(a), "    "))
-							fmt.Println()
-						}
-					}
-				}
-				if err := idx.Err(); err != nil {
+				idx, err := dict.Index()
+				if err != nil {
 					fmt.Fprintln(os.Stderr, err)
+					continue
+				}
+				for _, e := range idx.FullTextSearch(query) {
+					fmt.Println("  " + e.Word)
+					if full {
+						a, err := dict.Article(e)
+						if err != nil {
+							fmt.Fprintln(os.Stderr, err)
+							continue
+						}
+						fmt.Printf("%v\n", indent(renderArticle(a), "    "))
+						fmt.Println()
+					}
 				}
 				fmt.Println()
 			}

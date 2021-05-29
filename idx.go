@@ -20,6 +20,8 @@ import (
 	"encoding/binary"
 	"fmt"
 	"io"
+	"strings"
+	"unicode"
 )
 
 type Entry struct {
@@ -28,79 +30,146 @@ type Entry struct {
 	Size   uint32
 }
 
-// Idx is a stardict dictionary index. A stardict index is a simple list of
-// word entries and their offset and size in the dictionary file. Idx provides
-// functionality to read the index into entries and basic means for word lookup.
-// Dictionary applications that wish to provide search functionality should
-// use Idx to read the index but provide their own search capabilities
-// (e.g. fuzzy search etc.)
-type Idx struct {
-	r             io.ReadCloser
-	idxoffsetbits int
-	err           error
+// IdxScanner scans an index from start to end.
+type IdxScanner struct {
+	r             io.Reader
 	s             *bufio.Scanner
+	idxoffsetbits int
 }
 
-func NewIdx(r io.ReadCloser, idxoffsetbits int64) (*Idx, error) {
+// NewIdxScanner return a new index scanner that scans the index from start to end.
+func NewIdxScanner(r io.Reader, idxoffsetbits int64) (*IdxScanner, error) {
 	if idxoffsetbits != 32 && idxoffsetbits != 64 {
 		return nil, fmt.Errorf("invalid idxoffsetbits: %v", idxoffsetbits)
 	}
-
-	s := bufio.NewScanner(bufio.NewReader(r))
-	idx := &Idx{
+	s := &IdxScanner{
 		r:             r,
+		s:             bufio.NewScanner(bufio.NewReader(r)),
 		idxoffsetbits: int(idxoffsetbits),
-		s:             s,
 	}
-	s.Split(idx.splitIndex)
-	return idx, nil
+	s.s.Split(s.splitIndex)
+	return s, nil
 }
 
 // Scan advances the index to the next index entry. It returns false if the
 // scan stops either by reaching the end of the index or an error.
-func (idx *Idx) Scan() bool {
-	return idx.s.Scan()
+func (s *IdxScanner) Scan() bool {
+	return s.s.Scan()
 }
 
 // Err returns the first error encountered.
-func (idx *Idx) Err() error {
-	return idx.s.Err()
+func (s *IdxScanner) Err() error {
+	return s.s.Err()
 }
 
 // Entry gets the next entry in the index.
-func (idx *Idx) Entry() *Entry {
+func (s *IdxScanner) Entry() *Entry {
 	var e Entry
-	b := idx.s.Bytes()
+	b := s.s.Bytes()
 	if i := bytes.IndexByte(b, 0); i >= 0 {
 		e.Word = string(b[0:i])
-		if idx.idxoffsetbits == 64 {
+		if s.idxoffsetbits == 64 {
 			e.Offset = binary.BigEndian.Uint64(b[i+1:])
 		} else {
 			e.Offset = uint64(binary.BigEndian.Uint32(b[i+1:]))
 		}
-		e.Size = binary.BigEndian.Uint32(b[i+1+idx.idxoffsetbits/8:])
+		e.Size = binary.BigEndian.Uint32(b[i+1+s.idxoffsetbits/8:])
 	}
 
 	return &e
 }
 
-// Close closes the index file.
-func (idx *Idx) Close() error {
-	return idx.r.Close()
-}
-
 // splitIndex splits an index entry in the index file.
-func (idx *Idx) splitIndex(data []byte, atEOF bool) (advance int, token []byte, err error) {
+func (s *IdxScanner) splitIndex(data []byte, atEOF bool) (advance int, token []byte, err error) {
 	if atEOF && len(data) == 0 {
 		return 0, nil, nil
 	}
 	if i := bytes.IndexByte(data, 0); i >= 0 {
 		// Found zero byte.
-		tokenSize := i + 1 + idx.idxoffsetbits/8 + 4
+		tokenSize := i + 1 + s.idxoffsetbits/8 + 4
 		if len(data) >= tokenSize {
 			return tokenSize, data[:tokenSize], nil
 		}
 	}
 	// Request more data.
 	return 0, nil, nil
+}
+
+// Idx is a very basic implementation of an in memory index.
+type Idx struct {
+	idx     map[string][]int
+	entries []*Entry
+}
+
+// NewIdx returns a new in-memory index.
+func NewIdx(r io.Reader, idxoffsetbits int64) (*Idx, error) {
+	idx := &Idx{
+		idx: map[string][]int{},
+	}
+
+	i := 0
+	s, err := NewIdxScanner(r, idxoffsetbits)
+	if err != nil {
+		return nil, err
+	}
+	for s.Scan() {
+		e := s.Entry()
+		for _, t := range tokenize(e.Word) {
+			idx.idx[t] = append(idx.idx[t], i)
+		}
+		idx.entries = append(idx.entries, s.Entry())
+		i++
+	}
+	if err := s.Err(); err != nil {
+		return nil, err
+	}
+
+	return idx, nil
+}
+
+// Prefix search searches entries by prefix.
+func (idx *Idx) PrefixSearch(str string) []*Entry {
+	// TODO: implement binary search over idx.entries
+	var result []*Entry
+	for _, e := range idx.entries {
+		if strings.HasPrefix(strings.ToLower(e.Word), strings.ToLower(str)) {
+			result = append(result, e)
+		}
+	}
+	return result
+}
+
+// FullTextSearch searches full text of index entries.
+func (idx *Idx) FullTextSearch(str string) []*Entry {
+	var result []*Entry
+	for _, w := range tokenize(str) {
+		for _, id := range idx.idx[w] {
+			result = append(result, idx.entries[id])
+		}
+	}
+	return result
+}
+
+// tokenize tokenizes English text in a very basic way.
+func tokenize(str string) []string {
+	words := strings.FieldsFunc(str, func(r rune) bool {
+		// Split on any character that is not a letter or a number.
+		return !unicode.IsLetter(r) && !unicode.IsNumber(r)
+	})
+
+	var stopwords = map[string]struct{}{
+		"a": {}, "and": {}, "be": {}, "i": {},
+		"in": {}, "of": {}, "that": {}, "the": {},
+		"this": {}, "to": {},
+	}
+
+	var tokens []string
+	for _, w := range words {
+		t := strings.ToLower(w)
+		if _, ok := stopwords[t]; !ok {
+			tokens = append(tokens, t)
+		}
+	}
+
+	return tokens
 }

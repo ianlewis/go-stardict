@@ -33,11 +33,6 @@ var listCmd = &cobra.Command{
 		for _, err := range errs {
 			fmt.Fprintln(os.Stderr, err)
 		}
-		defer func() {
-			for _, dict := range dicts {
-				dict.Close()
-			}
-		}()
 
 		for _, dict := range dicts {
 			fmt.Printf("Name         %s\n", dict.Bookname())

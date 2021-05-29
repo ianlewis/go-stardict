@@ -33,6 +33,8 @@ type Stardict struct {
 	idx  *Idx
 	dict *Dict
 
+	ifoPath string
+
 	version          string
 	bookname         string
 	wordcount        int64
@@ -75,34 +77,33 @@ func OpenAll(path string) ([]*Stardict, []error) {
 
 // Open opens a Stardict dictionary from the given .ifo file path.
 func Open(path string) (*Stardict, error) {
-	ifoExt := filepath.Ext(path)
-	baseName := strings.TrimSuffix(path, ifoExt)
+	s := &Stardict{
+		ifoPath:       path,
+		idxoffsetbits: 32,
+	}
+
+	ifoExt := filepath.Ext(s.ifoPath)
 	if ifoExt != ".ifo" && ifoExt != ".IFO" {
 		return nil, fmt.Errorf("bad extension: %v", ifoExt)
 	}
 
-	ifoFile, err := os.Open(path)
+	ifoFile, err := os.Open(s.ifoPath)
 	if err != nil {
-		return nil, fmt.Errorf("error opening %q: %w", path, err)
+		return nil, fmt.Errorf("error opening %q: %w", s.ifoPath, err)
 	}
 	defer ifoFile.Close()
 
-	ifo, err := NewIfo(ifoFile)
+	s.ifo, err = NewIfo(ifoFile)
 	if err != nil {
-		return nil, fmt.Errorf("error reading %q: %w", path, err)
+		return nil, fmt.Errorf("error reading %q: %w", s.ifoPath, err)
 	}
 
-	if ifo.Magic() != ifoMagic {
-		return nil, fmt.Errorf("%q bad magic data", path)
-	}
-
-	s := &Stardict{
-		ifo:           ifo,
-		idxoffsetbits: 32,
+	if s.ifo.Magic() != ifoMagic {
+		return nil, fmt.Errorf("%q bad magic data", s.ifoPath)
 	}
 
 	// Validate the version
-	s.version = ifo.Value("version")
+	s.version = s.ifo.Value("version")
 	switch s.version {
 	case "2.4.2":
 	case "3.0.0":
@@ -110,22 +111,22 @@ func Open(path string) (*Stardict, error) {
 		return nil, fmt.Errorf("invalid version: %v", s.version)
 	}
 
-	s.bookname = ifo.Value("bookname")
+	s.bookname = s.ifo.Value("bookname")
 	if s.bookname == "" {
 		return nil, fmt.Errorf("missing bookname")
 	}
 
-	s.wordcount, err = strconv.ParseInt(ifo.Value("wordcount"), 10, 64)
+	s.wordcount, err = strconv.ParseInt(s.ifo.Value("wordcount"), 10, 64)
 	if err != nil {
 		return nil, fmt.Errorf("bad wordcount: %w", err)
 	}
 
-	s.idxfilesize, err = strconv.ParseInt(ifo.Value("idxfilesize"), 10, 64)
+	s.idxfilesize, err = strconv.ParseInt(s.ifo.Value("idxfilesize"), 10, 64)
 	if err != nil {
 		return nil, fmt.Errorf("bad idxfilesize: %w", err)
 	}
 
-	idxoffsetbits := ifo.Value("idxoffsetbits")
+	idxoffsetbits := s.ifo.Value("idxoffsetbits")
 	if idxoffsetbits != "" && s.version == "3.0.0" {
 		s.idxoffsetbits, err = strconv.ParseInt(idxoffsetbits, 10, 64)
 		if err != nil {
@@ -133,7 +134,7 @@ func Open(path string) (*Stardict, error) {
 		}
 	}
 
-	synwordcount := ifo.Value("synwordcount")
+	synwordcount := s.ifo.Value("synwordcount")
 	if synwordcount != "" {
 		s.synwordcount, err = strconv.ParseInt(synwordcount, 10, 64)
 		if err != nil {
@@ -141,28 +142,22 @@ func Open(path string) (*Stardict, error) {
 		}
 	}
 
-	sametypesequence := ifo.Value("sametypesequence")
+	sametypesequence := s.ifo.Value("sametypesequence")
 	if sametypesequence != "" {
 		for _, r := range sametypesequence {
 			s.sametypesequence = append(s.sametypesequence, WordType(r))
 		}
 	}
 
-	s.author = ifo.Value("author")
-	s.email = ifo.Value("email")
-	s.description = ifo.Value("description")
-	s.website = ifo.Value("website")
+	s.author = s.ifo.Value("author")
+	s.email = s.ifo.Value("email")
+	s.description = s.ifo.Value("description")
+	s.website = s.ifo.Value("website")
 
 	// TODO: .syn file.
 
-	// Open the index file.
-	s.idx, err = openIdx(baseName, s.idxoffsetbits)
-	if err != nil {
-		return nil, err
-	}
-
 	// Open the dict file.
-	s.dict, err = openDict(baseName, s.sametypesequence)
+	s.dict, err = openDict(s.ifoPath, s.sametypesequence)
 	if err != nil {
 		return nil, err
 	}
@@ -205,9 +200,17 @@ func (s *Stardict) Version() string {
 	return s.version
 }
 
-// Index returns the dictionary's index.
-func (s *Stardict) Index() *Idx {
-	return s.idx
+// Index returns an in-memory version of the dictionary's index.
+func (s *Stardict) Index() (*Idx, error) {
+	if s.idx != nil {
+		return s.idx, nil
+	}
+	idx, err := openIdx(s.ifoPath, s.idxoffsetbits)
+	if err != nil {
+		return nil, err
+	}
+	s.idx = idx
+	return s.idx, nil
 }
 
 // Index returns the dictionary's index.
@@ -215,12 +218,10 @@ func (s *Stardict) Article(e *Entry) (Article, error) {
 	return s.dict.Article(e)
 }
 
-// Close closes all dictionary resources.
-func (s *Stardict) Close() error {
-	return s.idx.Close()
-}
+func findIdxPath(ifoPath string) string {
+	ifoExt := filepath.Ext(ifoPath)
+	baseName := strings.TrimSuffix(ifoPath, ifoExt)
 
-func openIdx(baseName string, idxoffsetbits int64) (*Idx, error) {
 	// TODO: .syn file.
 	idxExts := []string{".idx.gz", ".idx", ".IDX", ".IDX.gz", ".IDX.GZ"}
 	var idxPath string
@@ -230,6 +231,11 @@ func openIdx(baseName string, idxoffsetbits int64) (*Idx, error) {
 			break
 		}
 	}
+	return idxPath
+}
+
+func openIdx(ifoPath string, idxoffsetbits int64) (*Idx, error) {
+	idxPath := findIdxPath(ifoPath)
 	if idxPath == "" {
 		return nil, fmt.Errorf("no index found")
 	}
@@ -240,6 +246,7 @@ func openIdx(baseName string, idxoffsetbits int64) (*Idx, error) {
 	if err != nil {
 		return nil, fmt.Errorf("error opening %q: %w", idxPath, err)
 	}
+	defer r.Close()
 
 	idxExt := filepath.Ext(idxPath)
 	if idxExt == ".gz" || idxExt == ".GZ" {
@@ -247,6 +254,7 @@ func openIdx(baseName string, idxoffsetbits int64) (*Idx, error) {
 		if err != nil {
 			return nil, fmt.Errorf("error opening %q: %w", idxPath, err)
 		}
+		defer r.Close()
 	}
 
 	idx, err := NewIdx(r, idxoffsetbits)
@@ -256,8 +264,13 @@ func openIdx(baseName string, idxoffsetbits int64) (*Idx, error) {
 	return idx, nil
 }
 
-func openDict(baseName string, sametypesequence []WordType) (*Dict, error) {
-	dictExts := []string{".dict.dz", ".dict", ".DICT", ".DICT.dz", ".DICT.DZ"}
+func openDict(ifoPath string, sametypesequence []WordType) (*Dict, error) {
+	ifoExt := filepath.Ext(ifoPath)
+	baseName := strings.TrimSuffix(ifoPath, ifoExt)
+
+	// TODO: Support .dz
+	// dictExts := []string{".dict.dz", ".dict", ".DICT", ".DICT.dz", ".DICT.DZ"}
+	dictExts := []string{".dict", ".DICT"}
 	var dictPath string
 	for _, ext := range dictExts {
 		dictPath = baseName + ext
@@ -275,15 +288,6 @@ func openDict(baseName string, sametypesequence []WordType) (*Dict, error) {
 	if err != nil {
 		return nil, fmt.Errorf("error opening %q: %w", dictPath, err)
 	}
-
-	// TODO: Support .dz
-	// dictExt := filepath.Ext(dictPath)
-	// if dictExt == ".dz" || dictExt == ".DZ" {
-	// 	r, err = gzip.NewReader(r)
-	// 	if err != nil {
-	// 		return nil, fmt.Errorf("error opening %q: %w", dictPath, err)
-	// 	}
-	// }
 
 	dict, err := NewDict(r, sametypesequence)
 	if err != nil {
