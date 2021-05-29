@@ -91,6 +91,11 @@ func (s *IdxScanner) splitIndex(data []byte, atEOF bool) (advance int, token []b
 			return tokenSize, data[:tokenSize], nil
 		}
 	}
+
+	if atEOF {
+		return len(data), data, nil
+	}
+
 	// Request more data.
 	return 0, nil, nil
 }
