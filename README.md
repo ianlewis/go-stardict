@@ -1,6 +1,6 @@
 # go-stardict
 
-A stardict library for Go
+A stardict dictionary library for Go.
 
 ## Status
 
@@ -39,3 +39,7 @@ for _, dict := range dicts {
   }
 }
 ```
+
+## References
+
+- [Format for StarDict dictionary files](https://github.com/huzheng001/stardict-3/blob/master/dict/doc/StarDictFileFormat)
