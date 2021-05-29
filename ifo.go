@@ -24,6 +24,7 @@ import (
 
 var keyRegex = regexp.MustCompile("[a-zA-Z0-9-_]+")
 
+// Ifo holds metadata read from .ifo files.
 type Ifo struct {
 	magic    string
 	metadata map[string]string
