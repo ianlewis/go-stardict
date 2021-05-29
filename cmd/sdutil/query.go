@@ -62,10 +62,15 @@ func queryCommand() *cobra.Command {
 				fmt.Fprintln(os.Stderr, err)
 			}
 
-			for _, dict := range dicts {
-				fmt.Println(dict.Bookname())
+			for _, d := range dicts {
+				fmt.Println(d.Bookname())
 				fmt.Println()
-				idx, err := dict.Index()
+				idx, err := d.Index()
+				if err != nil {
+					fmt.Fprintln(os.Stderr, err)
+					continue
+				}
+				dict, err := d.Dict()
 				if err != nil {
 					fmt.Fprintln(os.Stderr, err)
 					continue

@@ -156,12 +156,6 @@ func Open(path string) (*Stardict, error) {
 
 	// TODO: .syn file.
 
-	// Open the dict file.
-	s.dict, err = openDict(s.ifoPath, s.sametypesequence)
-	if err != nil {
-		return nil, err
-	}
-
 	return s, nil
 }
 
@@ -213,9 +207,18 @@ func (s *Stardict) Index() (*Idx, error) {
 	return s.idx, nil
 }
 
-// Index returns the dictionary's index.
-func (s *Stardict) Word(e *Entry) (*Word, error) {
-	return s.dict.Word(e)
+// Word returns a full dictionary article.
+func (s *Stardict) Dict() (*Dict, error) {
+	if s.dict != nil {
+		return s.dict, nil
+	}
+	// Open the dict file.
+	dict, err := openDict(s.ifoPath, s.sametypesequence)
+	if err != nil {
+		return nil, err
+	}
+	s.dict = dict
+	return s.dict, nil
 }
 
 func findIdxPath(ifoPath string) string {

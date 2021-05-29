@@ -22,11 +22,12 @@ You can search a stardict dictionary via it's index.
 
 ```golang
 // Open dictonaries in a directory
-dicts, _ := stardict.OpenAll(".")
-for _, dict := range dicts {
+dictionaries, _ := stardict.OpenAll(".")
+for _, d := range dictionaries {
 
   // Search the index.
-  idx, _ := dict.Index()
+  idx, _ := d.Index()
+  dict, _ := d.Dict()
   for _, e := range idx.FullTextSearch("banana") {
 
     // Print out matching index entries.
