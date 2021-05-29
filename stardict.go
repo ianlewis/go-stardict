@@ -237,7 +237,7 @@ func (s *Stardict) Index() (*idx.Idx, error) {
 	return s.idx, nil
 }
 
-// Word returns a full dictionary article.
+// Word returns the dictionary's dict.
 func (s *Stardict) Dict() (*dict.Dict, error) {
 	if s.dict != nil {
 		return s.dict, nil
