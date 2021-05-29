@@ -1,5 +1,7 @@
 # go-stardict
 
+[![Go Reference](https://pkg.go.dev/badge/github.com/ianlewis/go-stardict.svg)](https://pkg.go.dev/github.com/ianlewis/go-stardict)
+
 A stardict dictionary library for Go.
 
 ## Status
