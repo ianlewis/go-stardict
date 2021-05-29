@@ -27,7 +27,15 @@ type Dict struct {
 	sametypesequence []WordType
 }
 
-type Article []Word
+// Article is a full dictionary entry.
+type Article struct {
+	words []*Word
+}
+
+// Words returns all words for this article in order.
+func (a Article) Words() []*Word {
+	return a.words
+}
 
 type WordType byte
 
@@ -93,7 +101,7 @@ func NewDict(r io.ReadSeekCloser, sametypesequence []WordType) (*Dict, error) {
 
 // Article retrieves the article for the given index entry from the
 // dictionary.
-func (d *Dict) Article(e *Entry) (Article, error) {
+func (d *Dict) Article(e *Entry) (*Article, error) {
 	d.r.Seek(int64(e.Offset), io.SeekStart)
 	b := make([]byte, e.Size)
 	_, err := io.ReadFull(d.r, b)
@@ -101,7 +109,7 @@ func (d *Dict) Article(e *Entry) (Article, error) {
 		return nil, err
 	}
 
-	var a []Word
+	var words []*Word
 	s := bufio.NewScanner(bytes.NewReader(b))
 	s.Split(d.splitWord)
 	for i := 0; s.Scan(); i++ {
@@ -119,7 +127,7 @@ func (d *Dict) Article(e *Entry) (Article, error) {
 			data = token[1:]
 		}
 
-		a = append(a, Word{
+		words = append(words, &Word{
 			t:    t,
 			data: data,
 		})
@@ -128,7 +136,9 @@ func (d *Dict) Article(e *Entry) (Article, error) {
 	if err := s.Err(); err != nil {
 		return nil, err
 	}
-	return Article(a), nil
+	return &Article{
+		words: words,
+	}, nil
 }
 
 // Close closes the dict file.

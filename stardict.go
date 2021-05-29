@@ -214,7 +214,7 @@ func (s *Stardict) Index() (*Idx, error) {
 }
 
 // Index returns the dictionary's index.
-func (s *Stardict) Article(e *Entry) (Article, error) {
+func (s *Stardict) Article(e *Entry) (*Article, error) {
 	return s.dict.Article(e)
 }
 

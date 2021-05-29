@@ -33,7 +33,7 @@ for _, dict := range dicts {
 
     // Print out a full article.
     a, _ := dict.Article(e)
-    for _, w := range a {
+    for _, w := range a.Words() {
       fmt.Println(string(w.Data()))
     }
   }

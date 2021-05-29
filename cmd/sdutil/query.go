@@ -24,8 +24,8 @@ import (
 	"github.com/ianlewis/go-stardict"
 )
 
-func renderArticle(a stardict.Article) string {
-	for _, w := range a {
+func renderArticle(a *stardict.Article) string {
+	for _, w := range a.Words() {
 		switch w.Type() {
 		case stardict.UTFTextType, stardict.HTMLType:
 			return string(w.Data())
