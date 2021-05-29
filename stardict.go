@@ -248,7 +248,7 @@ func openIdx(ifoPath string, idxoffsetbits int64) (*Idx, error) {
 	defer r.Close()
 
 	idxExt := filepath.Ext(idxPath)
-	if idxExt == ".gz" || idxExt == ".GZ" {
+	if strings.ToLower(idxExt) == ".gz" {
 		r, err = gzip.NewReader(r)
 		if err != nil {
 			return nil, fmt.Errorf("error opening %q: %w", idxPath, err)
@@ -267,9 +267,7 @@ func openDict(ifoPath string, sametypesequence []DataType) (*Dict, error) {
 	ifoExt := filepath.Ext(ifoPath)
 	baseName := strings.TrimSuffix(ifoPath, ifoExt)
 
-	// TODO: Support .dz
-	// dictExts := []string{".dict.dz", ".dict", ".DICT", ".DICT.dz", ".DICT.DZ"}
-	dictExts := []string{".dict", ".DICT"}
+	dictExts := []string{".dict.dz", ".dict", ".DICT", ".DICT.dz", ".DICT.DZ"}
 	var dictPath string
 	for _, ext := range dictExts {
 		dictPath = baseName + ext
@@ -288,7 +286,8 @@ func openDict(ifoPath string, sametypesequence []DataType) (*Dict, error) {
 		return nil, fmt.Errorf("error opening %q: %w", dictPath, err)
 	}
 
-	dict, err := NewDict(r, sametypesequence)
+	dictExt := filepath.Ext(dictPath)
+	dict, err := NewDict(r, sametypesequence, strings.ToLower(dictExt) == ".dz")
 	if err != nil {
 		return nil, fmt.Errorf("error reading %q: %w", dictPath, err)
 	}

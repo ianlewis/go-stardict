@@ -19,11 +19,14 @@ import (
 	"bytes"
 	"fmt"
 	"io"
+
+	"github.com/pebbe/dictzip"
 )
 
 // Dict represents a Stardict dictionary's dictionary data.
 type Dict struct {
 	r                io.ReadSeekCloser
+	dz               *dictzip.Reader
 	sametypesequence []DataType
 }
 
@@ -71,7 +74,7 @@ func (w Data) Data() []byte {
 }
 
 // NewDict returns a new Dict.
-func NewDict(r io.ReadSeekCloser, sametypesequence []DataType) (*Dict, error) {
+func NewDict(r io.ReadSeekCloser, sametypesequence []DataType, isDictZip bool) (*Dict, error) {
 	// verify sametypesequence
 	for _, s := range sametypesequence {
 		switch s {
@@ -94,8 +97,18 @@ func NewDict(r io.ReadSeekCloser, sametypesequence []DataType) (*Dict, error) {
 		}
 	}
 
+	var dzReader *dictzip.Reader
+	var err error
+	if isDictZip {
+		dzReader, err = dictzip.NewReader(r)
+		if err != nil {
+			return nil, err
+		}
+	}
+
 	return &Dict{
 		r:                r,
+		dz:               dzReader,
 		sametypesequence: sametypesequence,
 	}, nil
 }
@@ -103,9 +116,7 @@ func NewDict(r io.ReadSeekCloser, sametypesequence []DataType) (*Dict, error) {
 // Word retrieves the word for the given index entry from the
 // dictionary.
 func (d *Dict) Word(e *Entry) (*Word, error) {
-	d.r.Seek(int64(e.Offset), io.SeekStart)
-	b := make([]byte, e.Size)
-	_, err := io.ReadFull(d.r, b)
+	b, err := d.getDictBytes(e)
 	if err != nil {
 		return nil, err
 	}
@@ -145,6 +156,21 @@ func (d *Dict) Word(e *Entry) (*Word, error) {
 // Close closes the dict file.
 func (d *Dict) Close() error {
 	return d.r.Close()
+}
+
+// getDictBytes reads bytes from the underlying readers.
+func (d *Dict) getDictBytes(e *Entry) ([]byte, error) {
+	if d.dz != nil {
+		return d.dz.Get(int64(e.Offset), int64(e.Size))
+	}
+
+	d.r.Seek(int64(e.Offset), io.SeekStart)
+	b := make([]byte, e.Size)
+	_, err := io.ReadFull(d.r, b)
+	if err != nil {
+		return nil, err
+	}
+	return b, nil
 }
 
 // splitWord splits an article by word.
