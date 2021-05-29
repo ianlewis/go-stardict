@@ -18,6 +18,7 @@ import (
 	"fmt"
 	"os"
 
+	// TODO: Remove cobra dependency.
 	"github.com/spf13/cobra"
 )
 

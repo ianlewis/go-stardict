@@ -222,7 +222,6 @@ func findIdxPath(ifoPath string) string {
 	ifoExt := filepath.Ext(ifoPath)
 	baseName := strings.TrimSuffix(ifoPath, ifoExt)
 
-	// TODO: .syn file.
 	idxExts := []string{".idx.gz", ".idx", ".IDX", ".IDX.gz", ".IDX.GZ"}
 	var idxPath string
 	for _, ext := range idxExts {
