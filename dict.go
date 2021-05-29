@@ -24,53 +24,54 @@ import (
 // Dict represents a Stardict dictionary's dictionary data.
 type Dict struct {
 	r                io.ReadSeekCloser
-	sametypesequence []WordType
+	sametypesequence []DataType
 }
 
-// Article is a full dictionary entry.
-type Article struct {
-	words []*Word
+// Word is a full dictionary entry.
+type Word struct {
+	data []*Data
 }
 
-// Words returns all words for this article in order.
-func (a Article) Words() []*Word {
-	return a.words
+// Data returns all data for this word in order.
+func (a Word) Data() []*Data {
+	return a.data
 }
 
-type WordType byte
+// DataType is a type of dictionary.
+type DataType byte
 
 const (
-	UTFTextType          = WordType('m')
-	LocaleTextType       = WordType('l')
-	PangoTextType        = WordType('g')
-	PhoneticType         = WordType('t')
-	XdxfType             = WordType('x')
-	YinBiaoOrKataType    = WordType('y')
-	PowerWordType        = WordType('p')
-	MediaWikiType        = WordType('w')
-	HTMLType             = WordType('h')
-	WordNetType          = WordType('n')
-	ResourceFileListType = WordType('r')
-	WavType              = WordType('W')
-	PictureType          = WordType('P')
-	ExperimentalType     = WordType('X')
+	UTFTextType          = DataType('m')
+	LocaleTextType       = DataType('l')
+	PangoTextType        = DataType('g')
+	PhoneticType         = DataType('t')
+	XdxfType             = DataType('x')
+	YinBiaoOrKataType    = DataType('y')
+	PowerDataType        = DataType('p')
+	MediaWikiType        = DataType('w')
+	HTMLType             = DataType('h')
+	WordNetType          = DataType('n')
+	ResourceFileListType = DataType('r')
+	WavType              = DataType('W')
+	PictureType          = DataType('P')
+	ExperimentalType     = DataType('X')
 )
 
-type Word struct {
-	t    WordType
+type Data struct {
+	t    DataType
 	data []byte
 }
 
-func (w Word) Type() WordType {
+func (w Data) Type() DataType {
 	return w.t
 }
 
-func (w Word) Data() []byte {
+func (w Data) Data() []byte {
 	return w.data
 }
 
 // NewDict returns a new Dict.
-func NewDict(r io.ReadSeekCloser, sametypesequence []WordType) (*Dict, error) {
+func NewDict(r io.ReadSeekCloser, sametypesequence []DataType) (*Dict, error) {
 	// verify sametypesequence
 	for _, s := range sametypesequence {
 		switch s {
@@ -80,7 +81,7 @@ func NewDict(r io.ReadSeekCloser, sametypesequence []WordType) (*Dict, error) {
 			PhoneticType,
 			XdxfType,
 			YinBiaoOrKataType,
-			PowerWordType,
+			PowerDataType,
 			MediaWikiType,
 			HTMLType,
 			WordNetType,
@@ -99,9 +100,9 @@ func NewDict(r io.ReadSeekCloser, sametypesequence []WordType) (*Dict, error) {
 	}, nil
 }
 
-// Article retrieves the article for the given index entry from the
+// Word retrieves the word for the given index entry from the
 // dictionary.
-func (d *Dict) Article(e *Entry) (*Article, error) {
+func (d *Dict) Word(e *Entry) (*Word, error) {
 	d.r.Seek(int64(e.Offset), io.SeekStart)
 	b := make([]byte, e.Size)
 	_, err := io.ReadFull(d.r, b)
@@ -109,25 +110,25 @@ func (d *Dict) Article(e *Entry) (*Article, error) {
 		return nil, err
 	}
 
-	var words []*Word
+	var wordData []*Data
 	s := bufio.NewScanner(bytes.NewReader(b))
 	s.Split(d.splitWord)
 	for i := 0; s.Scan(); i++ {
 		token := s.Bytes()
-		var t WordType
+		var t DataType
 		var data []byte
 		if len(d.sametypesequence) > 0 {
 			if i >= len(d.sametypesequence) {
-				return nil, fmt.Errorf("invalid article data")
+				return nil, fmt.Errorf("invalid word data")
 			}
 			t = d.sametypesequence[i]
 			data = token
 		} else {
-			t = WordType(token[0])
+			t = DataType(token[0])
 			data = token[1:]
 		}
 
-		words = append(words, &Word{
+		wordData = append(wordData, &Data{
 			t:    t,
 			data: data,
 		})
@@ -136,8 +137,8 @@ func (d *Dict) Article(e *Entry) (*Article, error) {
 	if err := s.Err(); err != nil {
 		return nil, err
 	}
-	return &Article{
-		words: words,
+	return &Word{
+		data: wordData,
 	}, nil
 }
 

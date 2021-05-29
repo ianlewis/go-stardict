@@ -45,7 +45,7 @@ type Stardict struct {
 	email            string
 	website          string
 	description      string
-	sametypesequence []WordType
+	sametypesequence []DataType
 }
 
 // OpenAll opens all dictionaries under a directory. This function will return
@@ -145,7 +145,7 @@ func Open(path string) (*Stardict, error) {
 	sametypesequence := s.ifo.Value("sametypesequence")
 	if sametypesequence != "" {
 		for _, r := range sametypesequence {
-			s.sametypesequence = append(s.sametypesequence, WordType(r))
+			s.sametypesequence = append(s.sametypesequence, DataType(r))
 		}
 	}
 
@@ -214,8 +214,8 @@ func (s *Stardict) Index() (*Idx, error) {
 }
 
 // Index returns the dictionary's index.
-func (s *Stardict) Article(e *Entry) (*Article, error) {
-	return s.dict.Article(e)
+func (s *Stardict) Word(e *Entry) (*Word, error) {
+	return s.dict.Word(e)
 }
 
 func findIdxPath(ifoPath string) string {
@@ -263,7 +263,7 @@ func openIdx(ifoPath string, idxoffsetbits int64) (*Idx, error) {
 	return idx, nil
 }
 
-func openDict(ifoPath string, sametypesequence []WordType) (*Dict, error) {
+func openDict(ifoPath string, sametypesequence []DataType) (*Dict, error) {
 	ifoExt := filepath.Ext(ifoPath)
 	baseName := strings.TrimSuffix(ifoPath, ifoExt)
 

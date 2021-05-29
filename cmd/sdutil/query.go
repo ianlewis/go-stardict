@@ -24,11 +24,11 @@ import (
 	"github.com/ianlewis/go-stardict"
 )
 
-func renderArticle(a *stardict.Article) string {
-	for _, w := range a.Words() {
-		switch w.Type() {
+func renderWord(w *stardict.Word) string {
+	for _, d := range w.Data() {
+		switch d.Type() {
 		case stardict.UTFTextType, stardict.HTMLType:
-			return string(w.Data())
+			return string(d.Data())
 		}
 	}
 	return ""
@@ -73,12 +73,12 @@ func queryCommand() *cobra.Command {
 				for _, e := range idx.FullTextSearch(query) {
 					fmt.Println("  " + e.Word)
 					if full {
-						a, err := dict.Article(e)
+						a, err := dict.Word(e)
 						if err != nil {
 							fmt.Fprintln(os.Stderr, err)
 							continue
 						}
-						fmt.Printf("%v\n", indent(renderArticle(a), "    "))
+						fmt.Printf("%v\n", indent(renderWord(a), "    "))
 						fmt.Println()
 					}
 				}
@@ -90,7 +90,7 @@ func queryCommand() *cobra.Command {
 			}
 		},
 	}
-	c.Flags().BoolVarP(&full, "full", "f", false, "output full articles")
+	c.Flags().BoolVarP(&full, "full", "f", false, "output full entries")
 
 	return c
 }

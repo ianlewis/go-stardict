@@ -31,10 +31,10 @@ for _, dict := range dicts {
     fmt.Println(e.Word)
     fmt.Println()
 
-    // Print out a full article.
-    a, _ := dict.Article(e)
-    for _, w := range a.Words() {
-      fmt.Println(string(w.Data()))
+    // Print out a full word.
+    w, _ := dict.Word(e)
+    for _, d := range w.Data() {
+      fmt.Println(string(d.Data()))
     }
   }
 }
