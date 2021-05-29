@@ -17,37 +17,13 @@ package main
 import (
 	"fmt"
 	"os"
-	"strings"
 
 	"github.com/spf13/cobra"
 
 	"github.com/ianlewis/go-stardict"
 )
 
-func renderWord(w *stardict.Word) string {
-	for _, d := range w.Data() {
-		switch d.Type() {
-		case stardict.UTFTextType, stardict.HTMLType:
-			return string(d.Data())
-		}
-	}
-	return ""
-}
-
-func indent(text, indent string) string {
-	var lines []string
-	for _, line := range strings.Split(text, "\n") {
-		if line != "" {
-			line = indent + line
-		}
-		lines = append(lines, line)
-	}
-	return strings.Join(lines, "\n")
-}
-
 func queryCommand() *cobra.Command {
-	var full bool
-
 	c := &cobra.Command{
 		Use:   "query [DIR] [QUERY]",
 		Short: "Query dictionaries",
@@ -65,27 +41,13 @@ func queryCommand() *cobra.Command {
 			for _, d := range dicts {
 				fmt.Println(d.Bookname())
 				fmt.Println()
-				idx, err := d.Index()
+				entries, err := d.FullTextSearch(query)
 				if err != nil {
 					fmt.Fprintln(os.Stderr, err)
 					continue
 				}
-				dict, err := d.Dict()
-				if err != nil {
-					fmt.Fprintln(os.Stderr, err)
-					continue
-				}
-				for _, e := range idx.FullTextSearch(query) {
-					fmt.Println("  " + e.Word)
-					if full {
-						a, err := dict.Word(e)
-						if err != nil {
-							fmt.Fprintln(os.Stderr, err)
-							continue
-						}
-						fmt.Printf("%v\n", indent(renderWord(a), "    "))
-						fmt.Println()
-					}
+				for _, e := range entries {
+					fmt.Println(e)
 				}
 				fmt.Println()
 			}
@@ -95,7 +57,6 @@ func queryCommand() *cobra.Command {
 			}
 		},
 	}
-	c.Flags().BoolVarP(&full, "full", "f", false, "output full entries")
 
 	return c
 }

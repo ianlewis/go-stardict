@@ -12,7 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package stardict
+// package ifo implements reading .ifo files.
+package ifo
 
 import (
 	"bufio"
@@ -30,8 +31,8 @@ type Ifo struct {
 	metadata map[string]string
 }
 
-// NewIfo returns a new dictionary info object from the path.
-func NewIfo(r io.Reader) (*Ifo, error) {
+// New returns a new metadata object.
+func New(r io.Reader) (*Ifo, error) {
 	ifo := &Ifo{
 		metadata: map[string]string{},
 	}

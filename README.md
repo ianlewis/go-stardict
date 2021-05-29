@@ -18,27 +18,17 @@ To install this package run
 
 ## Examples
 
-You can search a stardict dictionary via it's index.
+You can search a stardict dictionary directly and list the entries.
 
 ```golang
 // Open dictonaries in a directory
 dictionaries, _ := stardict.OpenAll(".")
 for _, d := range dictionaries {
-
   // Search the index.
-  idx, _ := d.Index()
-  dict, _ := d.Dict()
-  for _, e := range idx.FullTextSearch("banana") {
-
+  entries, _ := d.FullTextSearch("banana")
+  for _, e := range entries {
     // Print out matching index entries.
-    fmt.Println(e.Word)
-    fmt.Println()
-
-    // Print out a full word.
-    w, _ := dict.Word(e)
-    for _, d := range w.Data() {
-      fmt.Println(string(d.Data()))
-    }
+    fmt.Println(e)
   }
 }
 ```

@@ -23,15 +23,19 @@ import (
 	"path/filepath"
 	"strconv"
 	"strings"
+
+	"github.com/ianlewis/go-stardict/dict"
+	"github.com/ianlewis/go-stardict/idx"
+	"github.com/ianlewis/go-stardict/ifo"
 )
 
 const ifoMagic = "StarDict's dict ifo file"
 
 // Stardict is a stardict dictionary.
 type Stardict struct {
-	ifo  *Ifo
-	idx  *Idx
-	dict *Dict
+	ifo  *ifo.Ifo
+	idx  *idx.Idx
+	dict *dict.Dict
 
 	ifoPath string
 
@@ -45,7 +49,7 @@ type Stardict struct {
 	email            string
 	website          string
 	description      string
-	sametypesequence []DataType
+	sametypesequence []dict.DataType
 }
 
 // OpenAll opens all dictionaries under a directory. This function will return
@@ -93,7 +97,7 @@ func Open(path string) (*Stardict, error) {
 	}
 	defer ifoFile.Close()
 
-	s.ifo, err = NewIfo(ifoFile)
+	s.ifo, err = ifo.New(ifoFile)
 	if err != nil {
 		return nil, fmt.Errorf("error reading %q: %w", s.ifoPath, err)
 	}
@@ -145,7 +149,7 @@ func Open(path string) (*Stardict, error) {
 	sametypesequence := s.ifo.Value("sametypesequence")
 	if sametypesequence != "" {
 		for _, r := range sametypesequence {
-			s.sametypesequence = append(s.sametypesequence, DataType(r))
+			s.sametypesequence = append(s.sametypesequence, dict.DataType(r))
 		}
 	}
 
@@ -194,8 +198,34 @@ func (s *Stardict) Version() string {
 	return s.version
 }
 
+// FullTextSearch performs a full text search of the dictionary for the
+// given query and returns dictionary entries.
+func (s *Stardict) FullTextSearch(query string) ([]*Entry, error) {
+	idx, err := s.Index()
+	if err != nil {
+		return nil, err
+	}
+	dict, err := s.Dict()
+	if err != nil {
+		return nil, err
+	}
+
+	var entries []*Entry
+	for _, w := range idx.FullTextSearch(query) {
+		a, err := dict.Word(w)
+		if err != nil {
+			return nil, err
+		}
+		entries = append(entries, &Entry{
+			word: w.Word,
+			data: a.Data(),
+		})
+	}
+	return entries, nil
+}
+
 // Index returns an in-memory version of the dictionary's index.
-func (s *Stardict) Index() (*Idx, error) {
+func (s *Stardict) Index() (*idx.Idx, error) {
 	if s.idx != nil {
 		return s.idx, nil
 	}
@@ -208,7 +238,7 @@ func (s *Stardict) Index() (*Idx, error) {
 }
 
 // Word returns a full dictionary article.
-func (s *Stardict) Dict() (*Dict, error) {
+func (s *Stardict) Dict() (*dict.Dict, error) {
 	if s.dict != nil {
 		return s.dict, nil
 	}
@@ -236,7 +266,7 @@ func findIdxPath(ifoPath string) string {
 	return idxPath
 }
 
-func openIdx(ifoPath string, idxoffsetbits int64) (*Idx, error) {
+func openIdx(ifoPath string, idxoffsetbits int64) (*idx.Idx, error) {
 	idxPath := findIdxPath(ifoPath)
 	if idxPath == "" {
 		return nil, fmt.Errorf("no index found")
@@ -259,14 +289,14 @@ func openIdx(ifoPath string, idxoffsetbits int64) (*Idx, error) {
 		defer r.Close()
 	}
 
-	idx, err := NewIdx(r, idxoffsetbits)
+	idx, err := idx.New(r, idxoffsetbits)
 	if err != nil {
 		return nil, fmt.Errorf("error reading %q: %w", idxPath, err)
 	}
 	return idx, nil
 }
 
-func openDict(ifoPath string, sametypesequence []DataType) (*Dict, error) {
+func openDict(ifoPath string, sametypesequence []dict.DataType) (*dict.Dict, error) {
 	ifoExt := filepath.Ext(ifoPath)
 	baseName := strings.TrimSuffix(ifoPath, ifoExt)
 
@@ -290,7 +320,7 @@ func openDict(ifoPath string, sametypesequence []DataType) (*Dict, error) {
 	}
 
 	dictExt := filepath.Ext(dictPath)
-	dict, err := NewDict(r, sametypesequence, strings.ToLower(dictExt) == ".dz")
+	dict, err := dict.New(r, sametypesequence, strings.ToLower(dictExt) == ".dz")
 	if err != nil {
 		return nil, fmt.Errorf("error reading %q: %w", dictPath, err)
 	}

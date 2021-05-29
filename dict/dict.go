@@ -12,7 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package stardict
+// package dict implements reading .dict files.
+package dict
 
 import (
 	"bufio"
@@ -21,6 +22,8 @@ import (
 	"io"
 
 	"github.com/pebbe/dictzip"
+
+	"github.com/ianlewis/go-stardict/idx"
 )
 
 // Dict represents a Stardict dictionary's dictionary data.
@@ -73,8 +76,8 @@ func (w Data) Data() []byte {
 	return w.data
 }
 
-// NewDict returns a new Dict.
-func NewDict(r io.ReadSeekCloser, sametypesequence []DataType, isDictZip bool) (*Dict, error) {
+// New returns a new Dict from the given reader.
+func New(r io.ReadSeekCloser, sametypesequence []DataType, isDictZip bool) (*Dict, error) {
 	// verify sametypesequence
 	for _, s := range sametypesequence {
 		switch s {
@@ -115,7 +118,7 @@ func NewDict(r io.ReadSeekCloser, sametypesequence []DataType, isDictZip bool) (
 
 // Word retrieves the word for the given index entry from the
 // dictionary.
-func (d *Dict) Word(e *Entry) (*Word, error) {
+func (d *Dict) Word(e *idx.Word) (*Word, error) {
 	b, err := d.getDictBytes(e)
 	if err != nil {
 		return nil, err
@@ -159,7 +162,7 @@ func (d *Dict) Close() error {
 }
 
 // getDictBytes reads bytes from the underlying readers.
-func (d *Dict) getDictBytes(e *Entry) ([]byte, error) {
+func (d *Dict) getDictBytes(e *idx.Word) ([]byte, error) {
 	if d.dz != nil {
 		return d.dz.Get(int64(e.Offset), int64(e.Size))
 	}
