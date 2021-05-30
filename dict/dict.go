@@ -76,7 +76,8 @@ func (w Data) Data() []byte {
 	return w.data
 }
 
-// New returns a new Dict from the given reader.
+// New returns a new Dict from the given reader. Dict takes ownership of the
+// reader. The reader can be closed via the Dict's Close method.
 func New(r io.ReadSeekCloser, sametypesequence []DataType, isDictZip bool) (*Dict, error) {
 	// verify sametypesequence
 	for _, s := range sametypesequence {
@@ -176,7 +177,7 @@ func (d *Dict) getDictBytes(e *idx.Word) ([]byte, error) {
 	return b, nil
 }
 
-// splitWord splits an article by word.
+// splitWord splits a word by data.
 func (d *Dict) splitWord(data []byte, atEOF bool) (advance int, token []byte, err error) {
 	if atEOF && len(data) == 0 {
 		return 0, nil, nil

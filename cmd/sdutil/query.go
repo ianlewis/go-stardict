@@ -37,6 +37,11 @@ func queryCommand() *cobra.Command {
 			for _, err := range errs {
 				fmt.Fprintln(os.Stderr, err)
 			}
+			defer func() {
+				for _, d := range dicts {
+					d.Close()
+				}
+			}()
 
 			for _, d := range dicts {
 				fmt.Println(d.Bookname())

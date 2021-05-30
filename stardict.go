@@ -33,9 +33,10 @@ const ifoMagic = "StarDict's dict ifo file"
 
 // Stardict is a stardict dictionary.
 type Stardict struct {
-	ifo  *ifo.Ifo
-	idx  *idx.Idx
-	dict *dict.Dict
+	ifo        *ifo.Ifo
+	idx        *idx.Idx
+	dict       *dict.Dict
+	dictReader io.ReadSeekCloser
 
 	ifoPath string
 
@@ -249,6 +250,15 @@ func (s *Stardict) Dict() (*dict.Dict, error) {
 	}
 	s.dict = dict
 	return s.dict, nil
+}
+
+// Close closes the dict and any underlying readers.
+func (s *Stardict) Close() error {
+	if s.dict != nil {
+		// Close the dict and it's underlying readers.
+		return s.dict.Close()
+	}
+	return nil
 }
 
 func findIdxPath(ifoPath string) string {

@@ -25,8 +25,14 @@ You can search a stardict dictionary directly and list the entries.
 ```golang
 // Open dictonaries in a directory
 dictionaries, _ := stardict.OpenAll(".")
+defer func (){
+  for _, d := range dictionaries {
+    d.Close()
+  }
+}
+
+// Search the dictionaries.
 for _, d := range dictionaries {
-  // Search the index.
   entries, _ := d.FullTextSearch("banana")
   for _, e := range entries {
     // Print out matching index entries.
