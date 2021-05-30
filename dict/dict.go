@@ -16,8 +16,8 @@
 package dict
 
 import (
-	"bufio"
 	"bytes"
+	"encoding/binary"
 	"fmt"
 	"io"
 
@@ -126,33 +126,61 @@ func (d *Dict) Word(e *idx.Word) (*Word, error) {
 	}
 
 	var wordData []*Data
-	s := bufio.NewScanner(bytes.NewReader(b))
-	s.Split(d.splitWord)
-	for i := 0; s.Scan(); i++ {
-		token := s.Bytes()
-		fmt.Println(token)
-		var t DataType
-		var data []byte
-		if len(d.sametypesequence) > 0 {
-			if i >= len(d.sametypesequence) {
-				return nil, fmt.Errorf("invalid word data")
+	if len(d.sametypesequence) > 0 {
+		// When sametypesequence is specified, that determines the type of the
+		// word's data.
+		for _, t := range d.sametypesequence {
+			var data []byte
+			if 'a' <= t && t <= 'z' {
+				// Data is a string like sequence.
+				i := bytes.IndexByte(b, 0)
+				if i >= 0 {
+					i += 1
+				} else {
+					// Use the full length of the buffer if no null terminator
+					// is found. The final data won't have one.
+					i = len(b)
+				}
+				data = b[:i]
+				b = b[i:]
+			} else {
+				// Data is a file like sequence.
+				size := binary.BigEndian.Uint32(b)
+				data = b[4 : 4+size]
+				b = b[4+size:]
 			}
-			t = d.sametypesequence[i]
-			data = token
-		} else {
-			t = DataType(token[0])
-			data = token[1:]
+			wordData = append(wordData, &Data{
+				t:    t,
+				data: data,
+			})
 		}
+	} else {
+		for len(b) > 0 {
+			t := DataType(b[0])
+			b = b[1:]
 
-		wordData = append(wordData, &Data{
-			t:    t,
-			data: data,
-		})
+			var data []byte
+			if 'a' <= t && t <= 'z' {
+				// Data is a string like sequence.
+				i := bytes.IndexByte(b, 0)
+				if i < 0 {
+					i = len(b)
+				}
+				data = b[:i]
+				b = b[i+1:] // Skip the null terminator
+			} else {
+				// Data is a file like sequence.
+				size := binary.BigEndian.Uint32(b)
+				data = b[4 : 4+size]
+				b = b[4+size:]
+			}
+			wordData = append(wordData, &Data{
+				t:    t,
+				data: data,
+			})
+		}
 	}
 
-	if err := s.Err(); err != nil {
-		return nil, err
-	}
 	return &Word{
 		data: wordData,
 	}, nil
@@ -176,26 +204,4 @@ func (d *Dict) getDictBytes(e *idx.Word) ([]byte, error) {
 		return nil, err
 	}
 	return b, nil
-}
-
-// splitWord splits a word by data.
-func (d *Dict) splitWord(data []byte, atEOF bool) (int, []byte, error) {
-	if atEOF && len(data) == 0 {
-		return 0, nil, nil
-	}
-
-	// TODO: Support file data types.
-	// Ignore the data type since it should not be null and return it with the
-	// token if it exists.
-	if i := bytes.IndexByte(data, 0); i >= 0 {
-		// Found zero byte.
-		return i + 1, data[0:i], nil
-	}
-
-	if atEOF {
-		return len(data), data, nil
-	}
-
-	// Request more data.
-	return 0, nil, nil
 }

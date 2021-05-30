@@ -15,7 +15,10 @@
 package dict
 
 import (
+	"fmt"
+
 	"bytes"
+	"encoding/binary"
 	"io"
 	"io/ioutil"
 	"os"
@@ -29,16 +32,38 @@ func makeDict(words []*Word, sametypesequence []DataType) (*os.File, error) {
 	for _, w := range words {
 		data := w.Data()
 		for i, d := range data {
-			// TODO: Support file type data.
 			if len(sametypesequence) == 0 {
-				b = append(b, byte(d.Type()))
-				b = append(b, d.Data()...)
-				b = append(b, 0) // Append a zero byte terminator.
-			} else {
-				b = append(b, d.Data()...)
-				// Null terminator is not present on the last data item.
-				if i == len(data)-1 {
+				t := d.Type()
+				b = append(b, byte(t))
+				if 'a' <= t && t <= 'z' {
+					// Data is a string like sequence.
+					b = append(b, d.Data()...)
 					b = append(b, 0) // Append a zero byte terminator.
+				} else {
+					// Data is a file like sequence.
+					sizeBytes := make([]byte, 4)
+					data := d.Data()
+					binary.BigEndian.PutUint32(sizeBytes, uint32(len(data)))
+					b = append(b, sizeBytes...)
+					b = append(b, data...)
+					fmt.Printf("makeDict: %v\n", b)
+				}
+			} else {
+				t := d.Type()
+				if 'a' <= t && t <= 'z' {
+					// Data is a string like sequence.
+					b = append(b, d.Data()...)
+					// Null terminator is not present on the last data item.
+					if i == len(data)-1 {
+						b = append(b, 0)
+					}
+				} else {
+					// Data is a file like sequence.
+					sizeBytes := make([]byte, 4)
+					data := d.Data()
+					binary.BigEndian.PutUint32(sizeBytes, uint32(len(data)))
+					b = append(b, sizeBytes...)
+					b = append(b, data...)
 				}
 			}
 		}
@@ -108,6 +133,90 @@ func TestDict(t *testing.T) {
 				data: []*Data{
 					{
 						t:    UTFTextType,
+						data: []byte{'h', 'o', 'g', 'e'},
+					},
+				},
+			},
+		},
+		{
+			name: "utf sametype",
+			sametypesequence: []DataType{
+				UTFTextType,
+			},
+			dict: []*Word{
+				{
+					data: []*Data{
+						{
+							t:    UTFTextType,
+							data: []byte{'h', 'o', 'g', 'e'},
+						},
+					},
+				},
+			},
+			index: &idx.Word{
+				Word:   "hoge",
+				Offset: uint64(0),
+				Size:   uint32(4),
+			},
+			expected: &Word{
+				data: []*Data{
+					{
+						t:    UTFTextType,
+						data: []byte{'h', 'o', 'g', 'e'},
+					},
+				},
+			},
+		},
+		{
+			name: "file type",
+			dict: []*Word{
+				{
+					data: []*Data{
+						{
+							t:    WavType,
+							data: []byte{'h', 'o', 'g', 'e'},
+						},
+					},
+				},
+			},
+			index: &idx.Word{
+				Word:   "hoge",
+				Offset: uint64(0),
+				Size:   uint32(9), // 1 (type) + 4 (file size) + 4 data
+			},
+			expected: &Word{
+				data: []*Data{
+					{
+						t:    WavType,
+						data: []byte{'h', 'o', 'g', 'e'},
+					},
+				},
+			},
+		},
+		{
+			name: "file sametype",
+			sametypesequence: []DataType{
+				WavType,
+			},
+			dict: []*Word{
+				{
+					data: []*Data{
+						{
+							t:    WavType,
+							data: []byte{'h', 'o', 'g', 'e'},
+						},
+					},
+				},
+			},
+			index: &idx.Word{
+				Word:   "hoge",
+				Offset: uint64(0),
+				Size:   uint32(8), // 4 (file size) + 4 data
+			},
+			expected: &Word{
+				data: []*Data{
+					{
+						t:    WavType,
 						data: []byte{'h', 'o', 'g', 'e'},
 					},
 				},
