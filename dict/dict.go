@@ -130,6 +130,7 @@ func (d *Dict) Word(e *idx.Word) (*Word, error) {
 	s.Split(d.splitWord)
 	for i := 0; s.Scan(); i++ {
 		token := s.Bytes()
+		fmt.Println(token)
 		var t DataType
 		var data []byte
 		if len(d.sametypesequence) > 0 {
@@ -178,17 +179,15 @@ func (d *Dict) getDictBytes(e *idx.Word) ([]byte, error) {
 }
 
 // splitWord splits a word by data.
-func (d *Dict) splitWord(data []byte, atEOF bool) (advance int, token []byte, err error) {
+func (d *Dict) splitWord(data []byte, atEOF bool) (int, []byte, error) {
 	if atEOF && len(data) == 0 {
 		return 0, nil, nil
 	}
 
 	// TODO: Support file data types.
-	wordData := data
-	if len(d.sametypesequence) == 0 {
-		wordData = data[1:]
-	}
-	if i := bytes.IndexByte(wordData, 0); i >= 0 {
+	// Ignore the data type since it should not be null and return it with the
+	// token if it exists.
+	if i := bytes.IndexByte(data, 0); i >= 0 {
 		// Found zero byte.
 		return i + 1, data[0:i], nil
 	}
