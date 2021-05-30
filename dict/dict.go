@@ -183,6 +183,7 @@ func (d *Dict) splitWord(data []byte, atEOF bool) (advance int, token []byte, er
 		return 0, nil, nil
 	}
 
+	// TODO: Support file data types.
 	wordData := data
 	if len(d.sametypesequence) == 0 {
 		wordData = data[1:]
