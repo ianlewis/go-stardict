@@ -26,7 +26,10 @@ type Word struct {
 	Size   uint32
 }
 
-// Idx is a very basic implementation of an in memory index.
+// Idx is a very basic implementation of an in memory search index.
+// Implementers of dictionaries apps or tools may wish to consider using
+// IdxScanner to read the .idx file and generate their own more robust search
+// index.
 type Idx struct {
 	idx   map[string][]int
 	words []*Word
