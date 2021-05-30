@@ -159,7 +159,8 @@ func Open(path string) (*Stardict, error) {
 	s.description = s.ifo.Value("description")
 	s.website = s.ifo.Value("website")
 
-	// TODO: .syn file.
+	// TODO: support the .syn file.
+	// TODO: support the .tdx file.
 
 	return s, nil
 }

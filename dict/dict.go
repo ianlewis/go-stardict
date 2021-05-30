@@ -46,6 +46,8 @@ func (a Word) Data() []*Data {
 // DataType is a type of dictionary.
 type DataType byte
 
+// TODO: more godoc
+
 const (
 	UTFTextType          = DataType('m')
 	LocaleTextType       = DataType('l')
