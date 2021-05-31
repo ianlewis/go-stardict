@@ -200,9 +200,9 @@ func (s *Stardict) Version() string {
 	return s.version
 }
 
-// FullTextSearch performs a simple full text search of the dictionary for the
+// Search performs a simple full text search of the dictionary for the
 // given query and returns dictionary entries.
-func (s *Stardict) FullTextSearch(query string) ([]*Entry, error) {
+func (s *Stardict) Search(query string) ([]*Entry, error) {
 	idx, err := s.Index()
 	if err != nil {
 		return nil, err

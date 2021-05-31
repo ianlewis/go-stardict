@@ -33,7 +33,7 @@ defer func (){
 
 // Search the dictionaries.
 for _, d := range dictionaries {
-  entries, _ := d.FullTextSearch("banana")
+  entries, _ := d.Search("banana")
   for _, e := range entries {
     // Print out matching index entries.
     fmt.Println(e)

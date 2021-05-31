@@ -46,7 +46,7 @@ func queryCommand() *cobra.Command {
 			for _, d := range dicts {
 				fmt.Println(d.Bookname())
 				fmt.Println()
-				entries, err := d.FullTextSearch(query)
+				entries, err := d.Search(query)
 				if err != nil {
 					fmt.Fprintln(os.Stderr, err)
 					continue
