@@ -32,12 +32,7 @@ type Dict struct {
 
 // Word is a full dictionary entry.
 type Word struct {
-	data []*Data
-}
-
-// Data returns all data for this word in order.
-func (a Word) Data() []*Data {
-	return a.data
+	Data []*Data
 }
 
 // DataType is a type of data in a word. Data types are specified by a single
@@ -95,18 +90,8 @@ const (
 
 // Data is a data entry in a Word.
 type Data struct {
-	t    DataType
-	data []byte
-}
-
-// Type returns the data type.
-func (w Data) Type() DataType {
-	return w.t
-}
-
-// Data returns the underlying data as a byte slice.
-func (w Data) Data() []byte {
-	return w.data
+	Type DataType
+	Data []byte
 }
 
 // New returns a new Dict from the given reader. Dict takes ownership of the
@@ -176,8 +161,8 @@ func (d *Dict) Word(e *idx.Word) (*Word, error) {
 				b = b[4+size:]
 			}
 			wordData = append(wordData, &Data{
-				t:    t,
-				data: data,
+				Type: t,
+				Data: data,
 			})
 		}
 	} else {
@@ -201,13 +186,13 @@ func (d *Dict) Word(e *idx.Word) (*Word, error) {
 				b = b[4+size:]
 			}
 			wordData = append(wordData, &Data{
-				t:    t,
-				data: data,
+				Type: t,
+				Data: data,
 			})
 		}
 	}
 
 	return &Word{
-		data: wordData,
+		Data: wordData,
 	}, nil
 }

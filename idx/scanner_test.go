@@ -16,30 +16,8 @@ package idx
 
 import (
 	"bytes"
-	"encoding/binary"
 	"testing"
 )
-
-// Makes index bytes given a list of words.
-func makeIndex(words []*Word, idxoffsetbits int64) []byte {
-	b := []byte{}
-	for _, w := range words {
-		b = append(b, []byte(w.Word)...)
-		b = append(b, 0) // Add the zero byte terminator.
-		var b2 []byte
-		if idxoffsetbits == 64 {
-			b2 = make([]byte, 12)
-			binary.BigEndian.PutUint64(b2[:8], w.Offset)
-			binary.BigEndian.PutUint32(b2[8:12], w.Size)
-		} else {
-			b2 = make([]byte, 8)
-			binary.BigEndian.PutUint32(b2[:4], uint32(w.Offset))
-			binary.BigEndian.PutUint32(b2[4:8], w.Size)
-		}
-		b = append(b, b2...)
-	}
-	return b
-}
 
 // expectWordsEqual compares two word lists
 func expectWordsEqual(t *testing.T, expected, words []*Word) {
@@ -97,7 +75,7 @@ func TestIdxScanner(t *testing.T) {
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
 
-			b := makeIndex(test.expected, test.idxoffsetbits)
+			b := MakeIndex(test.expected, test.idxoffsetbits)
 
 			var words []*Word
 			s, err := NewIdxScanner(bytes.NewReader(b), test.idxoffsetbits)

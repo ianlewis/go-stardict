@@ -217,14 +217,14 @@ func (s *Stardict) Search(query string) ([]*Entry, error) {
 	}
 
 	var entries []*Entry
-	for _, w := range idx.FullTextSearch(query) {
-		a, err := dict.Word(w)
+	for _, idxWord := range idx.FullTextSearch(query) {
+		dictWord, err := dict.Word(idxWord)
 		if err != nil {
 			return nil, err
 		}
 		entries = append(entries, &Entry{
-			word: w.Word,
-			data: a.Data(),
+			word: idxWord.Word,
+			data: dictWord.Data,
 		})
 	}
 	return entries, nil
