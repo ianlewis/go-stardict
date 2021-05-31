@@ -232,8 +232,7 @@ func TestDict(t *testing.T) {
 			}
 			defer os.Remove(f.Name())
 
-			// TODO: support isDictZip
-			d, err := New(f, test.sametypesequence, false)
+			d, err := New(f, test.sametypesequence)
 			if err != nil {
 				t.Fatal(err)
 			}

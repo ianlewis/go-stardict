@@ -21,15 +21,12 @@ import (
 	"fmt"
 	"io"
 
-	"github.com/pebbe/dictzip"
-
 	"github.com/ianlewis/go-stardict/idx"
 )
 
 // Dict represents a Stardict dictionary's dictionary data.
 type Dict struct {
-	r                io.ReadSeekCloser
-	dz               *dictzip.Reader
+	r                io.ReaderAt
 	sametypesequence []DataType
 }
 
@@ -49,8 +46,6 @@ func (a Word) Data() []*Data {
 // represent file-like data that starts with a 32-bit size followed by file
 // data.
 type DataType byte
-
-// TODO: more godoc
 
 const (
 	// UTFTextType is utf-8 text.
@@ -116,7 +111,7 @@ func (w Data) Data() []byte {
 
 // New returns a new Dict from the given reader. Dict takes ownership of the
 // reader. The reader can be closed via the Dict's Close method.
-func New(r io.ReadSeekCloser, sametypesequence []DataType, isDictZip bool) (*Dict, error) {
+func New(r io.ReaderAt, sametypesequence []DataType) (*Dict, error) {
 	// verify sametypesequence
 	for _, s := range sametypesequence {
 		switch s {
@@ -139,18 +134,8 @@ func New(r io.ReadSeekCloser, sametypesequence []DataType, isDictZip bool) (*Dic
 		}
 	}
 
-	var dzReader *dictzip.Reader
-	var err error
-	if isDictZip {
-		dzReader, err = dictzip.NewReader(r)
-		if err != nil {
-			return nil, err
-		}
-	}
-
 	return &Dict{
 		r:                r,
-		dz:               dzReader,
 		sametypesequence: sametypesequence,
 	}, nil
 }
@@ -158,7 +143,10 @@ func New(r io.ReadSeekCloser, sametypesequence []DataType, isDictZip bool) (*Dic
 // Word retrieves the word for the given index entry from the
 // dictionary.
 func (d *Dict) Word(e *idx.Word) (*Word, error) {
-	b, err := d.getDictBytes(e)
+	b := make([]byte, e.Size)
+	// NOTE: if ReadAt does not read e.Size bytes then an error should be
+	// returned.
+	_, err := d.r.ReadAt(b, int64(e.Offset))
 	if err != nil {
 		return nil, err
 	}
@@ -222,24 +210,4 @@ func (d *Dict) Word(e *idx.Word) (*Word, error) {
 	return &Word{
 		data: wordData,
 	}, nil
-}
-
-// Close closes the dict file.
-func (d *Dict) Close() error {
-	return d.r.Close()
-}
-
-// getDictBytes reads bytes from the underlying readers.
-func (d *Dict) getDictBytes(e *idx.Word) ([]byte, error) {
-	if d.dz != nil {
-		return d.dz.Get(int64(e.Offset), int64(e.Size))
-	}
-
-	d.r.Seek(int64(e.Offset), io.SeekStart)
-	b := make([]byte, e.Size)
-	_, err := io.ReadFull(d.r, b)
-	if err != nil {
-		return nil, err
-	}
-	return b, nil
 }

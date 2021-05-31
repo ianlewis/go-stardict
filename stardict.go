@@ -24,6 +24,8 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/pebbe/dictzip"
+
 	"github.com/ianlewis/go-stardict/dict"
 	"github.com/ianlewis/go-stardict/idx"
 	"github.com/ianlewis/go-stardict/ifo"
@@ -33,10 +35,11 @@ const ifoMagic = "StarDict's dict ifo file"
 
 // Stardict is a stardict dictionary.
 type Stardict struct {
-	ifo        *ifo.Ifo
-	idx        *idx.Idx
-	dict       *dict.Dict
-	dictReader io.ReadSeekCloser
+	ifo  *ifo.Ifo
+	idx  *idx.Idx
+	dict *dict.Dict
+
+	dictFile *os.File
 
 	ifoPath string
 
@@ -246,19 +249,16 @@ func (s *Stardict) Dict() (*dict.Dict, error) {
 		return s.dict, nil
 	}
 	// Open the dict file.
-	dict, err := openDict(s.ifoPath, s.sametypesequence)
-	if err != nil {
+	if err := s.openDict(s.ifoPath, s.sametypesequence); err != nil {
 		return nil, err
 	}
-	s.dict = dict
 	return s.dict, nil
 }
 
 // Close closes the dict and any underlying readers.
 func (s *Stardict) Close() error {
-	if s.dict != nil {
-		// Close the dict and it's underlying readers.
-		return s.dict.Close()
+	if s.dictFile != nil {
+		return s.dictFile.Close()
 	}
 	return nil
 }
@@ -308,7 +308,7 @@ func openIdx(ifoPath string, idxoffsetbits int64) (*idx.Idx, error) {
 	return idx, nil
 }
 
-func openDict(ifoPath string, sametypesequence []dict.DataType) (*dict.Dict, error) {
+func (s *Stardict) openDict(ifoPath string, sametypesequence []dict.DataType) error {
 	ifoExt := filepath.Ext(ifoPath)
 	baseName := strings.TrimSuffix(ifoPath, ifoExt)
 
@@ -321,21 +321,34 @@ func openDict(ifoPath string, sametypesequence []dict.DataType) (*dict.Dict, err
 		}
 	}
 	if dictPath == "" {
-		return nil, fmt.Errorf("no dict found")
+		return fmt.Errorf("no dict found")
 	}
 
-	var r io.ReadSeekCloser
-	var err error
-	r, err = os.Open(dictPath)
+	var r io.ReaderAt
+	f, err := os.Open(dictPath)
 	if err != nil {
-		return nil, fmt.Errorf("error opening %q: %w", dictPath, err)
+		return fmt.Errorf("error opening %q: %w", dictPath, err)
 	}
+	r = f
 
+	var dz *dictzip.Reader
 	dictExt := filepath.Ext(dictPath)
-	dict, err := dict.New(r, sametypesequence, strings.ToLower(dictExt) == ".dz")
-	if err != nil {
-		return nil, fmt.Errorf("error reading %q: %w", dictPath, err)
+	if strings.ToLower(dictExt) == ".dz" {
+		dz, err = dictzip.NewReader(f)
+		if err != nil {
+			return err
+		}
+		r = dz
 	}
-	return dict, nil
+
+	dict, err := dict.New(r, sametypesequence)
+	if err != nil {
+		return fmt.Errorf("error reading %q: %w", dictPath, err)
+	}
+
+	s.dict = dict
+	s.dictFile = f
+
+	return nil
 
 }
