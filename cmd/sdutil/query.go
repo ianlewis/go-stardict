@@ -60,6 +60,7 @@ func queryCommand() *cobra.Command {
 					for _, e := range entries {
 						// Trim off any trailing whitespace.
 						fmt.Println(strings.TrimSpace(e.String()))
+						fmt.Println()
 					}
 				}
 			}
