@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// package dict implements reading .dict files.
+// Package dict implements reading .dict files.
 package dict
 
 import (
@@ -98,15 +98,18 @@ const (
 	ExperimentalType = DataType('X')
 )
 
+// Data is a data entry in a Word.
 type Data struct {
 	t    DataType
 	data []byte
 }
 
+// Type returns the data type.
 func (w Data) Type() DataType {
 	return w.t
 }
 
+// Data returns the underlying data as a byte slice.
 func (w Data) Data() []byte {
 	return w.data
 }

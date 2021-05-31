@@ -20,6 +20,7 @@ import (
 	"unicode"
 )
 
+// Word is an .idx file entry.
 type Word struct {
 	Word   string
 	Offset uint64

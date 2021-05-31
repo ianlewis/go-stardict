@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// package stardict implements a library for reading stardict dictionaries in
+// Package stardict implements a library for reading stardict dictionaries in
 // pure Go.
 //
 // Stardict dictionaries contain several files:

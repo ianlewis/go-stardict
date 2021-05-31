@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// package ifo implements reading .ifo files.
+// Package ifo implements reading .ifo files.
 package ifo
 
 import (

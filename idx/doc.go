@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// package idx implements reading .idx files.
+// Package idx implements reading .idx files.
 //
 // The .idx file contains a list of dictionary entry titles and the associated
 // offset and size of the main article content in the .dict file.
