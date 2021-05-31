@@ -161,6 +161,7 @@ func Open(path string) (*Stardict, error) {
 
 	// TODO: support the .syn file.
 	// TODO: support the .tdx file.
+	// TODO: support resource storage
 
 	return s, nil
 }

@@ -43,26 +43,59 @@ func (a Word) Data() []*Data {
 	return a.data
 }
 
-// DataType is a type of dictionary.
+// DataType is a type of data in a word. Data types are specified by a single
+// byte at the beginning of a word. Lower case characters represent string-like
+// data that is terminated by a null terminator ('\0'). Upper case characters
+// represent file-like data that starts with a 32-bit size followed by file
+// data.
 type DataType byte
 
 // TODO: more godoc
 
 const (
-	UTFTextType          = DataType('m')
-	LocaleTextType       = DataType('l')
-	PangoTextType        = DataType('g')
-	PhoneticType         = DataType('t')
-	XdxfType             = DataType('x')
-	YinBiaoOrKataType    = DataType('y')
-	PowerDataType        = DataType('p')
-	MediaWikiType        = DataType('w')
-	HTMLType             = DataType('h')
-	WordNetType          = DataType('n')
+	// UTFTextType is utf-8 text.
+	UTFTextType = DataType('m')
+
+	// LocalTextType is text in a locale encoding.
+	LocaleTextType = DataType('l')
+
+	// PangoTextType is utf-8 text in the Pango text format.
+	PangoTextType = DataType('g')
+
+	// PhoneticType is utf-8 text representing an English phonetic string.
+	PhoneticType = DataType('t')
+
+	// XDXF is utf-8 encoded xml in XDXF format.
+	XDXFType = DataType('x')
+
+	// YinBiaoOrKataType is utf-8 encoded Yin Biao or Kana phonetic string.
+	YinBiaoOrKataType = DataType('y')
+
+	// PowerWordType is a utf-8 encoded KingSoft PowerWord XML format.
+	PowerWordType = DataType('p')
+
+	// MediaWikiType is utf-8 encoded text in MediaWiki format.
+	MediaWikiType = DataType('w')
+
+	// HTMLType is utf-8 encoded HTML text.
+	HTMLType = DataType('h')
+
+	// WordNetType is WordNet data.
+	WordNetType = DataType('n')
+
+	// ResourceFileListType is a list of files in resource storage.
 	ResourceFileListType = DataType('r')
-	WavType              = DataType('W')
-	PictureType          = DataType('P')
-	ExperimentalType     = DataType('X')
+
+	// WavType is .wav sound file data.
+	WavType = DataType('W')
+
+	// PictureType is image file data. This was used by the
+	// stardict-advertisement-plugin. Images are better stored in a resource
+	// file list.
+	PictureType = DataType('P')
+
+	// ExperimentalType is reserved for experimental features.
+	ExperimentalType = DataType('X')
 )
 
 type Data struct {
@@ -88,9 +121,9 @@ func New(r io.ReadSeekCloser, sametypesequence []DataType, isDictZip bool) (*Dic
 			LocaleTextType,
 			PangoTextType,
 			PhoneticType,
-			XdxfType,
+			XDXFType,
 			YinBiaoOrKataType,
-			PowerDataType,
+			PowerWordType,
 			MediaWikiType,
 			HTMLType,
 			WordNetType,
