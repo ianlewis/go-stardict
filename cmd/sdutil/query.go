@@ -17,6 +17,7 @@ package main
 import (
 	"fmt"
 	"os"
+	"strings"
 
 	"github.com/spf13/cobra"
 
@@ -43,18 +44,24 @@ func queryCommand() *cobra.Command {
 				}
 			}()
 
-			for _, d := range dicts {
-				fmt.Println(d.Bookname())
-				fmt.Println()
+			for i, d := range dicts {
 				entries, err := d.Search(query)
 				if err != nil {
 					fmt.Fprintln(os.Stderr, err)
 					continue
 				}
-				for _, e := range entries {
-					fmt.Println(e)
+				if len(entries) > 0 {
+					if i > 0 {
+						fmt.Println()
+					}
+					fmt.Println(d.Bookname())
+					fmt.Println()
+
+					for _, e := range entries {
+						// Trim off any trailing whitespace.
+						fmt.Println(strings.TrimSpace(e.String()))
+					}
 				}
-				fmt.Println()
 			}
 
 			if len(errs) > 0 {
