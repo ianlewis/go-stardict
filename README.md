@@ -12,6 +12,18 @@ The API is currently *unstable* and will change. This package will use [module
 version numbering](https://golang.org/doc/modules/version-numbers) to manage
 versions and compatibility.
 
+# Features
+
+- [x] Reading dictionary metadata.
+- [x] Reading & searching the dictionary index.
+- [x] Reading full dictionary articles.
+- [x] Efficient access for large files.
+- [x] Dictzip support.
+- [ ] Support for concurrent access.
+- [ ] Synonym support (.syn file).
+- [ ] Support for tree dictionaries (.tdx file).
+- [ ] Support for Resource Storage (res/ directory).
+
 ## Installation
 
 To install this package run
