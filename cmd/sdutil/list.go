@@ -15,40 +15,61 @@
 package main
 
 import (
+	"context"
+	"flag"
 	"fmt"
 	"os"
 
-	"github.com/spf13/cobra"
+	"github.com/google/subcommands"
 
 	"github.com/ianlewis/go-stardict"
 )
 
-var listCmd = &cobra.Command{
-	Use:   "list [DIR]",
-	Short: "List dictionaries",
-	Long:  `List all dictionaries in a directory.`,
-	Args:  cobra.ExactArgs(1),
-	Run: func(cmd *cobra.Command, args []string) {
-		dicts, errs := stardict.OpenAll(args[0])
-		for _, err := range errs {
-			fmt.Fprintln(os.Stderr, err)
-		}
-		defer func() {
-			for _, d := range dicts {
-				d.Close()
-			}
-		}()
+type listCommand struct{}
 
-		for _, dict := range dicts {
-			fmt.Printf("Name         %s\n", dict.Bookname())
-			fmt.Printf("Author:      %s\n", dict.Author())
-			fmt.Printf("Email:       %s\n", dict.Email())
-			fmt.Printf("Word Count:  %d\n", dict.WordCount())
-			fmt.Println()
-		}
+func (*listCommand) Name() string {
+	return "list"
+}
 
-		if len(errs) > 0 {
-			os.Exit(1)
+func (*listCommand) Synopsis() string {
+	return "List dictionaries"
+}
+
+func (*listCommand) Usage() string {
+	return `list [DIR]
+List all dictionaries in a directory.`
+}
+
+func (*listCommand) SetFlags(f *flag.FlagSet) {}
+
+func (*listCommand) Execute(_ context.Context, f *flag.FlagSet, _ ...interface{}) subcommands.ExitStatus {
+	args := f.Args()
+	if len(args) != 1 {
+		fmt.Fprintln(os.Stderr, "unexpected number of arguments")
+		return subcommands.ExitUsageError
+	}
+
+	dicts, errs := stardict.OpenAll(args[0])
+	for _, err := range errs {
+		fmt.Fprintln(os.Stderr, err)
+	}
+	defer func() {
+		for _, d := range dicts {
+			d.Close()
 		}
-	},
+	}()
+
+	for _, dict := range dicts {
+		fmt.Printf("Name         %s\n", dict.Bookname())
+		fmt.Printf("Author:      %s\n", dict.Author())
+		fmt.Printf("Email:       %s\n", dict.Email())
+		fmt.Printf("Word Count:  %d\n", dict.WordCount())
+		fmt.Println()
+	}
+
+	if len(errs) > 0 {
+		return subcommands.ExitFailure
+	}
+
+	return subcommands.ExitSuccess
 }

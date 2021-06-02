@@ -15,65 +15,78 @@
 package main
 
 import (
+	"context"
+	"flag"
 	"fmt"
 	"os"
 	"strings"
 
-	"github.com/spf13/cobra"
+	"github.com/google/subcommands"
 
 	"github.com/ianlewis/go-stardict"
 )
 
-func queryCommand() *cobra.Command {
-	c := &cobra.Command{
-		Use:   "query [DIR] [QUERY]",
-		Short: "Query dictionaries",
-		Long:  `Query all dictionaries in a directory.`,
-		Args:  cobra.ExactArgs(2),
-		Run: func(cmd *cobra.Command, args []string) {
-			path := args[0]
-			query := args[1]
+type queryCommand struct{}
 
-			dicts, errs := stardict.OpenAll(path)
-			for _, err := range errs {
-				fmt.Fprintln(os.Stderr, err)
+func (*queryCommand) Name() string {
+	return "query"
+}
+
+func (*queryCommand) Synopsis() string {
+	return "Query dictionaries"
+}
+
+func (*queryCommand) Usage() string {
+	return `query [DIR] [QUERY]
+Query all dictionaries in a directory.`
+}
+
+func (*queryCommand) SetFlags(f *flag.FlagSet) {}
+
+func (c *queryCommand) Execute(_ context.Context, f *flag.FlagSet, _ ...interface{}) subcommands.ExitStatus {
+	args := f.Args()
+
+	path := args[0]
+	query := args[1]
+
+	dicts, errs := stardict.OpenAll(path)
+	for _, err := range errs {
+		fmt.Fprintln(os.Stderr, err)
+	}
+	defer func() {
+		for _, d := range dicts {
+			d.Close()
+		}
+	}()
+
+	dictResults := 0
+	for _, d := range dicts {
+		entries, err := d.Search(query)
+		if err != nil {
+			fmt.Fprintln(os.Stderr, err)
+			continue
+		}
+
+		if len(entries) > 0 {
+			if dictResults > 0 {
+				fmt.Println()
 			}
-			defer func() {
-				for _, d := range dicts {
-					d.Close()
-				}
-			}()
+			dictResults++
 
-			dictResults := 0
-			for _, d := range dicts {
-				entries, err := d.Search(query)
-				if err != nil {
-					fmt.Fprintln(os.Stderr, err)
-					continue
-				}
+			fmt.Println(d.Bookname())
+			fmt.Println()
 
-				if len(entries) > 0 {
-					if dictResults > 0 {
-						fmt.Println()
-					}
-					dictResults++
-
-					fmt.Println(d.Bookname())
-					fmt.Println()
-
-					for _, e := range entries {
-						// Trim off any trailing whitespace.
-						fmt.Println(strings.TrimSpace(e.String()))
-						fmt.Println()
-					}
-				}
+			for _, e := range entries {
+				// Trim off any trailing whitespace.
+				fmt.Println(strings.TrimSpace(e.String()))
+				fmt.Println()
 			}
-
-			if len(errs) > 0 {
-				os.Exit(1)
-			}
-		},
+		}
 	}
 
-	return c
+	if len(errs) > 0 {
+		return subcommands.ExitFailure
+	}
+
+	return subcommands.ExitSuccess
 }

@@ -15,25 +15,19 @@
 package main
 
 import (
-	"fmt"
+	"context"
+	"flag"
 	"os"
 
-	// TODO: Remove cobra dependency.
-	"github.com/spf13/cobra"
+	"github.com/google/subcommands"
 )
 
-var rootCmd = &cobra.Command{
-	Use:   "sdutil [COMMAND]",
-	Short: "sdutil is a utility for stardict dictionaries",
-	Long:  `A utility for stardict dictionaries.`,
-}
-
 func main() {
-	rootCmd.AddCommand(listCmd)
-	rootCmd.AddCommand(queryCommand())
+	subcommands.Register(subcommands.HelpCommand(), "")
+	subcommands.Register(new(listCommand), "")
+	subcommands.Register(new(queryCommand), "")
 
-	if err := rootCmd.Execute(); err != nil {
-		fmt.Fprintln(os.Stderr, err)
-		os.Exit(1)
-	}
+	flag.Parse()
+	ctx := context.Background()
+	os.Exit(int(subcommands.Execute(ctx)))
 }
