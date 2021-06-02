@@ -14,15 +14,15 @@ versions and compatibility.
 
 # Features
 
-- [x] Reading dictionary metadata.
-- [x] Reading & searching the dictionary index.
-- [x] Reading full dictionary articles.
-- [x] Efficient access for large files.
-- [x] Dictzip support.
-- [ ] Support for concurrent access.
-- [ ] Synonym support (.syn file).
-- [ ] Support for tree dictionaries (.tdx file).
-- [ ] Support for Resource Storage (res/ directory).
+* \[x] Reading dictionary metadata.
+* \[x] Reading & searching the dictionary index.
+* \[x] Reading full dictionary articles.
+* \[x] Efficient access for large files.
+* \[x] Dictzip support.
+* \[x] Support for concurrent access.
+* \[ ] Synonym support (.syn file).
+* \[ ] Support for tree dictionaries (.tdx file).
+* \[ ] Support for Resource Storage (res/ directory).
 
 ## Installation
 
@@ -50,4 +50,4 @@ for _, d := range dictionaries {
 
 ## References
 
-- [Format for StarDict dictionary files](https://github.com/huzheng001/stardict-3/blob/master/dict/doc/StarDictFileFormat)
+* [Format for StarDict dictionary files](https://github.com/huzheng001/stardict-3/blob/master/dict/doc/StarDictFileFormat)

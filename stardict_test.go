@@ -15,6 +15,8 @@
 package stardict
 
 import (
+	"sync"
+
 	"io/ioutil"
 	"os"
 	"path/filepath"
@@ -50,6 +52,7 @@ func writeDict(d testDict) (string, error) {
 	return path, nil
 }
 
+// TestOpen tests Open.
 func TestOpen(t *testing.T) {
 	tests := []struct {
 		name  string
@@ -112,4 +115,67 @@ idxfilesize=6`,
 			}
 		})
 	}
+}
+
+// TestConcurrency tests that Stardict can be used concurrently.
+func TestConcurrency(t *testing.T) {
+	td := testDict{
+		ifo: `StarDict's dict ifo file
+version=3.0.0
+bookname=hoge
+wordcount=1
+idxfilesize=6`,
+		idx: []*idx.Word{
+			{
+				Word:   "hoge",
+				Offset: 0,
+				Size:   6,
+			},
+		},
+		dict: []*dict.Word{
+			{
+				Data: []*dict.Data{
+					{
+						Type: dict.UTFTextType,
+						Data: []byte{'h', 'o', 'g', 'e'},
+					},
+				},
+			},
+		},
+	}
+
+	path, err := writeDict(td)
+	if err != nil {
+		t.Fatalf("writeDict: %v", err)
+	}
+	defer os.RemoveAll(path)
+
+	s, err := Open(filepath.Join(path, "dictionary.ifo"))
+	if err != nil {
+		t.Fatalf("Open: %v", err)
+	}
+
+	var entries []*Entry
+	var mu sync.Mutex
+	var wg sync.WaitGroup
+	for i := 0; i < 1000; i++ {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			e, err := s.Search("hoge")
+			if err != nil {
+				return
+			}
+			mu.Lock()
+			defer mu.Unlock()
+			entries = append(entries, e...)
+		}()
+	}
+
+	wg.Wait()
+
+	if want, got := 1000, len(entries); want != got {
+		t.Fatalf("Unexpected size: want %v, got: %v", want, got)
+	}
+
 }
