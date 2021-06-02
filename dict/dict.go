@@ -46,7 +46,7 @@ const (
 	// UTFTextType is utf-8 text.
 	UTFTextType = DataType('m')
 
-	// LocalTextType is text in a locale encoding.
+	// LocaleTextType is text in a locale encoding.
 	LocaleTextType = DataType('l')
 
 	// PangoTextType is utf-8 text in the Pango text format.
@@ -55,7 +55,7 @@ const (
 	// PhoneticType is utf-8 text representing an English phonetic string.
 	PhoneticType = DataType('t')
 
-	// XDXF is utf-8 encoded xml in XDXF format.
+	// XDXFType is utf-8 encoded xml in XDXF format.
 	XDXFType = DataType('x')
 
 	// YinBiaoOrKataType is utf-8 encoded Yin Biao or Kana phonetic string.
