@@ -29,7 +29,7 @@ type Word struct {
 
 // Idx is a very basic implementation of an in memory search index.
 // Implementers of dictionaries apps or tools may wish to consider using
-// IdxScanner to read the .idx file and generate their own more robust search
+// Scanner to read the .idx file and generate their own more robust search
 // index.
 type Idx struct {
 	idx   map[string][]int
@@ -37,13 +37,13 @@ type Idx struct {
 }
 
 // New returns a new in-memory index.
-func New(r io.Reader, idxoffsetbits int64) (*Idx, error) {
+func New(r io.ReadCloser, idxoffsetbits int64) (*Idx, error) {
 	idx := &Idx{
 		idx: map[string][]int{},
 	}
 
 	i := 0
-	s, err := NewIdxScanner(r, idxoffsetbits)
+	s, err := NewScanner(r, idxoffsetbits)
 	if err != nil {
 		return nil, err
 	}

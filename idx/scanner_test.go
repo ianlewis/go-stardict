@@ -16,6 +16,7 @@ package idx
 
 import (
 	"bytes"
+	"io/ioutil"
 	"testing"
 )
 
@@ -78,7 +79,7 @@ func TestIdxScanner(t *testing.T) {
 			b := MakeIndex(test.expected, test.idxoffsetbits)
 
 			var words []*Word
-			s, err := NewIdxScanner(bytes.NewReader(b), test.idxoffsetbits)
+			s, err := NewScanner(ioutil.NopCloser(bytes.NewReader(b)), test.idxoffsetbits)
 			if err != nil {
 				t.Fatal(err)
 			}

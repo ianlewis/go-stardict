@@ -230,6 +230,17 @@ func (s *Stardict) Search(query string) ([]*Entry, error) {
 	return entries, nil
 }
 
+// IndexScanner returns a new index scanner. The caller assumes ownership of
+// the underlying reader so Close should be called on the scanner when
+// finished.
+func (s *Stardict) IndexScanner() (*idx.Scanner, error) {
+	f, err := s.openIdxFile()
+	if err != nil {
+		return nil, err
+	}
+	return idx.NewScanner(f, s.idxoffsetbits)
+}
+
 // Index returns a simple in-memory version of the dictionary's index.
 func (s *Stardict) Index() (*idx.Idx, error) {
 	if s.idx != nil {
@@ -261,7 +272,7 @@ func (s *Stardict) Close() error {
 	return nil
 }
 
-func (s *Stardict) openIdx() error {
+func (s *Stardict) openIdxFile() (*os.File, error) {
 	ifoExt := filepath.Ext(s.ifoPath)
 	baseName := strings.TrimSuffix(s.ifoPath, ifoExt)
 
@@ -274,16 +285,22 @@ func (s *Stardict) openIdx() error {
 		}
 	}
 	if idxPath == "" {
-		return fmt.Errorf("no index found")
+		return nil, fmt.Errorf("no .idx file found")
 	}
 
+	return os.Open(idxPath)
+}
+
+func (s *Stardict) openIdx() error {
 	var r io.ReadCloser
 	var err error
-	r, err = os.Open(idxPath)
+	f, err := s.openIdxFile()
 	if err != nil {
-		return fmt.Errorf("error opening %q: %w", idxPath, err)
+		return err
 	}
-	defer r.Close()
+	defer f.Close()
+	idxPath := f.Name()
+	r = f
 
 	idxExt := filepath.Ext(idxPath)
 	if strings.ToLower(idxExt) == ".gz" {

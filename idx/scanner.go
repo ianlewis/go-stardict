@@ -22,19 +22,19 @@ import (
 	"io"
 )
 
-// IdxScanner scans an index from start to end.
-type IdxScanner struct {
-	r             io.Reader
+// Scanner scans an index from start to end.
+type Scanner struct {
+	r             io.ReadCloser
 	s             *bufio.Scanner
 	idxoffsetbits int
 }
 
-// NewIdxScanner return a new index scanner that scans the index from start to end.
-func NewIdxScanner(r io.Reader, idxoffsetbits int64) (*IdxScanner, error) {
+// NewScanner return a new index scanner that scans the index from start to end.
+func NewScanner(r io.ReadCloser, idxoffsetbits int64) (*Scanner, error) {
 	if idxoffsetbits != 32 && idxoffsetbits != 64 {
 		return nil, fmt.Errorf("invalid idxoffsetbits: %v", idxoffsetbits)
 	}
-	s := &IdxScanner{
+	s := &Scanner{
 		r:             r,
 		s:             bufio.NewScanner(bufio.NewReader(r)),
 		idxoffsetbits: int(idxoffsetbits),
@@ -45,17 +45,22 @@ func NewIdxScanner(r io.Reader, idxoffsetbits int64) (*IdxScanner, error) {
 
 // Scan advances the index to the next index entry. It returns false if the
 // scan stops either by reaching the end of the index or an error.
-func (s *IdxScanner) Scan() bool {
+func (s *Scanner) Scan() bool {
 	return s.s.Scan()
 }
 
 // Err returns the first error encountered.
-func (s *IdxScanner) Err() error {
+func (s *Scanner) Err() error {
 	return s.s.Err()
 }
 
+// Close closes the underlying reader.
+func (s *Scanner) Close() error {
+	return s.r.Close()
+}
+
 // Word gets the next entry in the index.
-func (s *IdxScanner) Word() *Word {
+func (s *Scanner) Word() *Word {
 	var e Word
 	b := s.s.Bytes()
 	if i := bytes.IndexByte(b, 0); i >= 0 {
@@ -72,7 +77,7 @@ func (s *IdxScanner) Word() *Word {
 }
 
 // splitIndex splits an index entry in the index file.
-func (s *IdxScanner) splitIndex(data []byte, atEOF bool) (advance int, token []byte, err error) {
+func (s *Scanner) splitIndex(data []byte, atEOF bool) (advance int, token []byte, err error) {
 	if atEOF && len(data) == 0 {
 		return 0, nil, nil
 	}
