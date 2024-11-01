@@ -1,4 +1,4 @@
-// Copyright 2021 Google LLC
+// Copyright 2024 Google LLC
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -12,27 +12,38 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package idx
+package testutil
 
 import (
 	"encoding/binary"
+	"fmt"
+	"math"
+
+	"github.com/ianlewis/go-stardict/idx"
 )
 
 // MakeIndex make a test index given a list of words.
-func MakeIndex(words []*Word, idxoffsetbits int64) []byte {
+func MakeIndex(words []*idx.Word, idxoffsetbits int64) []byte {
 	b := []byte{}
 	for _, w := range words {
 		b = append(b, []byte(w.Word)...)
 		b = append(b, 0) // Add the zero byte terminator.
 		var b2 []byte
-		if idxoffsetbits == 64 {
+		switch idxoffsetbits {
+		case 32:
+			b2 = make([]byte, 8)
+			if w.Offset > math.MaxUint32 {
+				panic(fmt.Sprintf("word offset too large %d > %d", w.Offset, idxoffsetbits))
+			}
+			//nolint:gosec // test code, offset size determined by idxoffsetbits
+			binary.BigEndian.PutUint32(b2[:4], uint32(w.Offset))
+			binary.BigEndian.PutUint32(b2[4:8], w.Size)
+		case 64:
 			b2 = make([]byte, 12)
 			binary.BigEndian.PutUint64(b2[:8], w.Offset)
 			binary.BigEndian.PutUint32(b2[8:12], w.Size)
-		} else {
-			b2 = make([]byte, 8)
-			binary.BigEndian.PutUint32(b2[:4], uint32(w.Offset))
-			binary.BigEndian.PutUint32(b2[4:8], w.Size)
+		default:
+			panic(fmt.Sprintf("unsupported offset bits: %d", idxoffsetbits))
 		}
 		b = append(b, b2...)
 	}

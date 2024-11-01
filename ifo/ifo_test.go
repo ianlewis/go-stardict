@@ -21,6 +21,8 @@ import (
 
 // TestIfo tests Ifo
 func TestIfo(t *testing.T) {
+	t.Parallel()
+
 	tests := []struct {
 		name   string
 		data   string
@@ -32,6 +34,7 @@ func TestIfo(t *testing.T) {
 			data: `test magic
 version=1.0.0`,
 			expect: func(t *testing.T, i *Ifo) {
+				t.Helper()
 				if want, got := "test magic", i.Magic(); want != got {
 					t.Fatalf("magic; want: %q, got: %q", want, got)
 				}
@@ -49,6 +52,8 @@ version=1.0.0`,
 
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
+			t.Parallel()
+
 			i, err := New(bytes.NewReader([]byte(test.data)))
 			if test.err && err == nil {
 				t.Fatal("New: expected failure")

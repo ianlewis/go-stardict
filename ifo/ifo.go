@@ -17,6 +17,7 @@ package ifo
 
 import (
 	"bufio"
+	"errors"
 	"fmt"
 	"io"
 	"regexp"
@@ -24,6 +25,11 @@ import (
 )
 
 var keyRegex = regexp.MustCompile("[a-zA-Z0-9-_]+")
+
+var (
+	errNoVersion  = errors.New("missing version")
+	errInvalidKey = errors.New("invalid key")
+)
 
 // Ifo holds metadata read from .ifo files.
 type Ifo struct {
@@ -52,20 +58,20 @@ func New(r io.Reader) (*Ifo, error) {
 		key := strings.TrimRight(v[0], " ")
 		value := strings.TrimLeft(v[1], " ")
 		if !keyRegex.Match([]byte(key)) {
-			return nil, fmt.Errorf("invalid key: %v", key)
+			return nil, fmt.Errorf("%w: %v", errInvalidKey, key)
 		}
 		if i == 0 && key != "version" {
-			return nil, fmt.Errorf("missing version")
+			return nil, errNoVersion
 		}
 
 		ifo.metadata[key] = value
 		i++
 	}
 	if len(ifo.metadata) == 0 {
-		return nil, fmt.Errorf("missing version")
+		return nil, errNoVersion
 	}
 	if err := s.Err(); err != nil {
-		return nil, err
+		return nil, fmt.Errorf("scanning ifo file: %w", err)
 	}
 
 	return ifo, nil

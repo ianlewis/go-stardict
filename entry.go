@@ -38,12 +38,10 @@ func (e *Entry) Data() []*dict.Data {
 func (e *Entry) String() string {
 	str := e.word + "\n"
 	for _, d := range e.Data() {
-		switch d.Type {
 		// TODO: support rendering more types as text
 		// TODO: strip tags from html
-		case dict.PhoneticType, dict.UTFTextType, dict.YinBiaoOrKataType, dict.HTMLType:
-			str += string(d.Data) + "\n"
-		}
+		// string will work for PhoneticType, UTFTextType, YinBiaoOrKataType, HTMLType
+		str += string(d.Data) + "\n"
 	}
 	return str
 }

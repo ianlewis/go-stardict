@@ -41,7 +41,7 @@ func (*queryCommand) Usage() string {
 Query all dictionaries in a directory.`
 }
 
-func (*queryCommand) SetFlags(f *flag.FlagSet) {}
+func (*queryCommand) SetFlags(_ *flag.FlagSet) {}
 
 func (c *queryCommand) Execute(_ context.Context, f *flag.FlagSet, _ ...interface{}) subcommands.ExitStatus {
 	args := f.Args()

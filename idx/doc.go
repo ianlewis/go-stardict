@@ -18,9 +18,9 @@
 // offset and size of the main article content in the .dict file.
 //
 // Each .idx file entry (word) comes in three parts:
-//   1. The title: a utf-8 string terminated by a null terminator ('\0').
-//   2. The offset: a 32 or 64 bit integer offset of the word in the .dict
-//      file in network byte order.
-//   3. The size: a 32 bit integer size of the word in the .dict file in
-//      network byte order.
+//  1. The title: a utf-8 string terminated by a null terminator ('\0').
+//  2. The offset: a 32 or 64 bit integer offset of the word in the .dict
+//     file in network byte order.
+//  3. The size: a 32 bit integer size of the word in the .dict file in
+//     network byte order.
 package idx

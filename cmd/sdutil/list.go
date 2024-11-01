@@ -40,7 +40,7 @@ func (*listCommand) Usage() string {
 List all dictionaries in a directory.`
 }
 
-func (*listCommand) SetFlags(f *flag.FlagSet) {}
+func (*listCommand) SetFlags(_ *flag.FlagSet) {}
 
 func (*listCommand) Execute(_ context.Context, f *flag.FlagSet, _ ...interface{}) subcommands.ExitStatus {
 	args := f.Args()

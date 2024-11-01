@@ -89,12 +89,15 @@ linters-settings:
           # Go standard library
           - $gostd
 
-          # TODO: This project.
-          # - "github.com/ianlewis/..."
+          # This project.
+          - "github.com/ianlewis/go-stardict"
 
-          # TODO: Dependencies.
-          # - "sigs.k8s.io/release-utils/version"
+          # Dependencies.
+          - "github.com/google/subcommands"
+          - "github.com/pebbe/dictzip"
         deny:
+          - pkg: "github.com/ianlewis/go-stardict/internal/testutils"
+            desc: Please don't use testutils package
           - pkg: "reflect"
             desc: Please don't use reflect package
           - pkg: "unsafe"
@@ -106,11 +109,12 @@ linters-settings:
           # Go standard library
           - $gostd
 
-          # TODO: This project.
-          # - "github.com/ianlewis/..."
+          # This project.
+          - "github.com/ianlewis/go-stardict"
 
-          # TODO: Dependencies.
-          # - "github.com/google/go-cmp/cmp"
+          # Dependencies.
+          - "github.com/google/subcommands"
+          - "github.com/pebbe/dictzip"
         deny:
           - pkg: "reflect"
             desc: Use go-cmp instead.
@@ -127,7 +131,7 @@ linters-settings:
     min-complexity: 40
   nestif:
     # Increased beyond default to preserve some semblance of sanity.
-    min-complexity: 8
+    min-complexity: 12
   govet:
     disable:
       # Too strict.
@@ -143,7 +147,7 @@ linters-settings:
     sections:
       - standard
       - default
-      - prefix(github.com/ianlewis/todos)
+      - prefix(github.com/ianlewis/go-stardict)
   gocritic:
     disable-all: true
     enabled-checks:

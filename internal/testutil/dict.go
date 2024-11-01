@@ -12,14 +12,18 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package dict
+package testutil
 
 import (
 	"encoding/binary"
+	"fmt"
+	"math"
+
+	"github.com/ianlewis/go-stardict/dict"
 )
 
 // MakeDict creates a test .dict file.
-func MakeDict(words []*Word, sametypesequence []DataType) []byte {
+func MakeDict(words []*dict.Word, sametypesequence []dict.DataType) []byte {
 	b := []byte{}
 	for _, w := range words {
 		for i, d := range w.Data {
@@ -32,7 +36,12 @@ func MakeDict(words []*Word, sametypesequence []DataType) []byte {
 				} else {
 					// Data is a file like sequence.
 					sizeBytes := make([]byte, 4)
-					binary.BigEndian.PutUint32(sizeBytes, uint32(len(d.Data)))
+					dataLen := len(d.Data)
+					if dataLen > math.MaxUint32 {
+						panic(fmt.Sprintf("word data too long: %d", dataLen))
+					}
+					//nolint:gosec // data length is bounds checked above
+					binary.BigEndian.PutUint32(sizeBytes, uint32(dataLen))
 					b = append(b, sizeBytes...)
 					b = append(b, d.Data...)
 				}
@@ -47,7 +56,12 @@ func MakeDict(words []*Word, sametypesequence []DataType) []byte {
 				} else {
 					// Data is a file like sequence.
 					sizeBytes := make([]byte, 4)
-					binary.BigEndian.PutUint32(sizeBytes, uint32(len(d.Data)))
+					dataLen := len(d.Data)
+					if dataLen > math.MaxUint32 {
+						panic(fmt.Sprintf("word data too long: %d", dataLen))
+					}
+					//nolint:gosec // data length is bounds checked above
+					binary.BigEndian.PutUint32(sizeBytes, uint32(dataLen))
 					b = append(b, sizeBytes...)
 					b = append(b, d.Data...)
 				}

@@ -18,10 +18,17 @@ package dict
 import (
 	"bytes"
 	"encoding/binary"
+	"errors"
 	"fmt"
 	"io"
+	"math"
 
 	"github.com/ianlewis/go-stardict/idx"
+)
+
+var (
+	errInvalidType        = errors.New("invalid type")
+	errWordOffsetTooLarge = errors.New("word offset too large")
 )
 
 // Dict represents a Stardict dictionary's dictionary data.
@@ -115,7 +122,7 @@ func New(r io.ReaderAt, sametypesequence []DataType) (*Dict, error) {
 			PictureType,
 			ExperimentalType:
 		default:
-			return nil, fmt.Errorf("invalid type: %v", s)
+			return nil, fmt.Errorf("%w: %v", errInvalidType, s)
 		}
 	}
 
@@ -129,11 +136,16 @@ func New(r io.ReaderAt, sametypesequence []DataType) (*Dict, error) {
 // dictionary.
 func (d *Dict) Word(e *idx.Word) (*Word, error) {
 	b := make([]byte, e.Size)
+	// TODO(#9): Support dictionary word offsets math.MaxInt64 > x < math.MaxUint64
+	if e.Offset > math.MaxInt64 {
+		return nil, fmt.Errorf("%w: %d", errWordOffsetTooLarge, e.Offset)
+	}
 	// NOTE: if ReadAt does not read e.Size bytes then an error should be
 	// returned.
+	//nolint:gosec // offset size is bounds checked above.
 	_, err := d.r.ReadAt(b, int64(e.Offset))
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("reading dictionary: %w", err)
 	}
 
 	var wordData []*Data
@@ -146,7 +158,7 @@ func (d *Dict) Word(e *idx.Word) (*Word, error) {
 				// Data is a string like sequence.
 				i := bytes.IndexByte(b, 0)
 				if i >= 0 {
-					i += 1
+					i++
 				} else {
 					// Use the full length of the buffer if no null terminator
 					// is found. The final data won't have one.

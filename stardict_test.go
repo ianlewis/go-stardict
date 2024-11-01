@@ -15,13 +15,13 @@
 package stardict
 
 import (
-	"io/ioutil"
 	"os"
 	"path/filepath"
 	"testing"
 
 	"github.com/ianlewis/go-stardict/dict"
 	"github.com/ianlewis/go-stardict/idx"
+	"github.com/ianlewis/go-stardict/internal/testutil"
 )
 
 type testDict struct {
@@ -31,27 +31,29 @@ type testDict struct {
 }
 
 // writeDict writes out a test dictionary set of files.
-func writeDict(d testDict) (string, error) {
-	path, err := ioutil.TempDir("", "stardict")
+func writeDict(d testDict) string {
+	path, err := os.MkdirTemp("", "stardict")
 	if err != nil {
-		return "", nil
+		panic(err)
 	}
 
-	if err := ioutil.WriteFile(filepath.Join(path, "dictionary.ifo"), []byte(d.ifo), 0600); err != nil {
-		return "", err
+	if err := os.WriteFile(filepath.Join(path, "dictionary.ifo"), []byte(d.ifo), 0600); err != nil {
+		panic(err)
 	}
-	if err := ioutil.WriteFile(filepath.Join(path, "dictionary.idx"), idx.MakeIndex(d.idx, 32), 0600); err != nil {
-		return "", err
+	if err := os.WriteFile(filepath.Join(path, "dictionary.idx"), testutil.MakeIndex(d.idx, 32), 0600); err != nil {
+		panic(err)
 	}
-	if err := ioutil.WriteFile(filepath.Join(path, "dictionary.dict"), dict.MakeDict(d.dict, nil), 0600); err != nil {
-		return "", err
+	if err := os.WriteFile(filepath.Join(path, "dictionary.dict"), testutil.MakeDict(d.dict, nil), 0600); err != nil {
+		panic(err)
 	}
 
-	return path, nil
+	return path
 }
 
 // TestOpen tests Open.
 func TestOpen(t *testing.T) {
+	t.Parallel()
+
 	tests := []struct {
 		name  string
 		dicts []testDict
@@ -89,11 +91,10 @@ idxfilesize=6`,
 
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
+			t.Parallel()
+
 			for _, td := range test.dicts {
-				path, err := writeDict(td)
-				if err != nil {
-					t.Fatalf("writeDict: %v", err)
-				}
+				path := writeDict(td)
 				defer os.RemoveAll(path)
 
 				s, err := Open(filepath.Join(path, "dictionary.ifo"))
