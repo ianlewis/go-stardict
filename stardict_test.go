@@ -37,13 +37,13 @@ func writeDict(d testDict) string {
 		panic(err)
 	}
 
-	if err := os.WriteFile(filepath.Join(path, "dictionary.ifo"), []byte(d.ifo), 0600); err != nil {
+	if err := os.WriteFile(filepath.Join(path, "dictionary.ifo"), []byte(d.ifo), 0o600); err != nil {
 		panic(err)
 	}
-	if err := os.WriteFile(filepath.Join(path, "dictionary.idx"), testutil.MakeIndex(d.idx, 32), 0600); err != nil {
+	if err := os.WriteFile(filepath.Join(path, "dictionary.idx"), testutil.MakeIndex(d.idx, 32), 0o600); err != nil {
 		panic(err)
 	}
-	if err := os.WriteFile(filepath.Join(path, "dictionary.dict"), testutil.MakeDict(d.dict, nil), 0600); err != nil {
+	if err := os.WriteFile(filepath.Join(path, "dictionary.dict"), testutil.MakeDict(d.dict, nil), 0o600); err != nil {
 		panic(err)
 	}
 

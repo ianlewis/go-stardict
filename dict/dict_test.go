@@ -25,7 +25,7 @@ import (
 	"github.com/ianlewis/go-stardict/internal/testutil"
 )
 
-func expectWordsEqual(t *testing.T, expected *dict.Word, word *dict.Word) {
+func expectWordsEqual(t *testing.T, expected, word *dict.Word) {
 	t.Helper()
 
 	if want, got := len(expected.Data), len(word.Data); want != got {
@@ -174,7 +174,8 @@ func TestDict(t *testing.T) {
 			}
 			defer os.Remove(f.Name())
 
-			if f.Write(testutil.MakeDict(test.dict, test.sametypesequence)); err != nil {
+			_, err = f.Write(testutil.MakeDict(test.dict, test.sametypesequence))
+			if err != nil {
 				t.Fatal(err)
 			}
 			_, err = f.Seek(0, io.SeekStart)

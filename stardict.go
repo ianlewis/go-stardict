@@ -217,18 +217,18 @@ func (s *Stardict) Version() string {
 // Search performs a simple full text search of the dictionary for the
 // given query and returns dictionary entries.
 func (s *Stardict) Search(query string) ([]*Entry, error) {
-	idx, err := s.Index()
+	index, err := s.Index()
 	if err != nil {
 		return nil, err
 	}
-	dict, err := s.Dict()
+	d, err := s.Dict()
 	if err != nil {
 		return nil, err
 	}
 
 	var entries []*Entry
-	for _, idxWord := range idx.FullTextSearch(query) {
-		dictWord, err := dict.Word(idxWord)
+	for _, idxWord := range index.FullTextSearch(query) {
+		dictWord, err := d.Word(idxWord)
 		if err != nil {
 			return nil, fmt.Errorf("reading word: %w", err)
 		}
@@ -323,6 +323,7 @@ func (s *Stardict) openIdx() error {
 	r = f
 
 	idxExt := filepath.Ext(idxPath)
+	//nolint:gocritic // strings.EqualFold should not be used here.
 	if strings.ToLower(idxExt) == ".gz" {
 		r, err = gzip.NewReader(r)
 		if err != nil {
@@ -331,12 +332,12 @@ func (s *Stardict) openIdx() error {
 		defer r.Close()
 	}
 
-	idx, err := idx.New(r, s.idxoffsetbits)
+	index, err := idx.New(r, s.idxoffsetbits)
 	if err != nil {
 		return fmt.Errorf("error reading %q: %w", idxPath, err)
 	}
 
-	s.idx = idx
+	s.idx = index
 
 	return nil
 }
@@ -366,6 +367,7 @@ func (s *Stardict) openDict() error {
 
 	var dz *dictzip.Reader
 	dictExt := filepath.Ext(dictPath)
+	//nolint:gocritic // strings.EqualFold should not be used here.
 	if strings.ToLower(dictExt) == ".dz" {
 		dz, err = dictzip.NewReader(f)
 		if err != nil {
@@ -374,12 +376,12 @@ func (s *Stardict) openDict() error {
 		r = dz
 	}
 
-	dict, err := dict.New(r, s.sametypesequence)
+	d, err := dict.New(r, s.sametypesequence)
 	if err != nil {
 		return fmt.Errorf("error reading %q: %w", dictPath, err)
 	}
 
-	s.dict = dict
+	s.dict = d
 	s.dictFile = f
 
 	return nil

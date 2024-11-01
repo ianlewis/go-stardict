@@ -40,7 +40,6 @@ func MakeDict(words []*dict.Word, sametypesequence []dict.DataType) []byte {
 					if dataLen > math.MaxUint32 {
 						panic(fmt.Sprintf("word data too long: %d", dataLen))
 					}
-					//nolint:gosec // data length is bounds checked above
 					binary.BigEndian.PutUint32(sizeBytes, uint32(dataLen))
 					b = append(b, sizeBytes...)
 					b = append(b, d.Data...)
@@ -60,7 +59,6 @@ func MakeDict(words []*dict.Word, sametypesequence []dict.DataType) []byte {
 					if dataLen > math.MaxUint32 {
 						panic(fmt.Sprintf("word data too long: %d", dataLen))
 					}
-					//nolint:gosec // data length is bounds checked above
 					binary.BigEndian.PutUint32(sizeBytes, uint32(dataLen))
 					b = append(b, sizeBytes...)
 					b = append(b, d.Data...)

@@ -19,7 +19,7 @@ import (
 	"testing"
 )
 
-// TestIfo tests Ifo
+// TestIfo tests the Ifo type.
 func TestIfo(t *testing.T) {
 	t.Parallel()
 

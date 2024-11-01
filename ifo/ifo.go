@@ -57,7 +57,7 @@ func New(r io.Reader) (*Ifo, error) {
 		v := strings.SplitN(line, "=", 2)
 		key := strings.TrimRight(v[0], " ")
 		value := strings.TrimLeft(v[1], " ")
-		if !keyRegex.Match([]byte(key)) {
+		if !keyRegex.MatchString(key) {
 			return nil, fmt.Errorf("%w: %v", errInvalidKey, key)
 		}
 		if i == 0 && key != "version" {
