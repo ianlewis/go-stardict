@@ -105,11 +105,11 @@ yaml-format: node_modules/.installed ## Format YAML files.
 
 .PHONY: go-format
 go-format: ## Format Go files (gofumpt).
-	@# TODO: Format using gci
 	@set -euo pipefail;\
 		files=$$(git ls-files '*.go'); \
 		if [ "$${files}" != "" ]; then \
-			gofumpt $${files}; \
+			gofumpt -w $${files}; \
+			gci write  --skip-generated -s standard -s default -s "prefix(github.com/ianlewis/go-stardict)" $${files}; \
 		fi
 
 ## Linters
