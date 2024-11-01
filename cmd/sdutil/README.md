@@ -5,7 +5,7 @@ dictionaries.
 
 ## List dictionaries
 
-```
+```shell
 $ sdutil list /path/to/dictionaries
 Name         4JWORDS
 Author:      Kanji Haitani
@@ -25,7 +25,7 @@ Word Count:  171879
 
 ## Search dictionaries
 
-```
+```shell
 $ sdutil query /path/to/dictionary "dictionary"
 jmdict-en-ja
 
