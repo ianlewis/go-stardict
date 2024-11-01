@@ -12,19 +12,22 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package dict
+package dict_test
 
 import (
 	"bytes"
 	"io"
-	"io/ioutil"
 	"os"
 	"testing"
 
+	"github.com/ianlewis/go-stardict/dict"
 	"github.com/ianlewis/go-stardict/idx"
+	"github.com/ianlewis/go-stardict/internal/testutil"
 )
 
-func expectWordsEqual(t *testing.T, expected *Word, word *Word) {
+func expectWordsEqual(t *testing.T, expected, word *dict.Word) {
+	t.Helper()
+
 	if want, got := len(expected.Data), len(word.Data); want != got {
 		t.Fatalf("unexpected # of data; want: %d, got: %d", want, got)
 	}
@@ -32,7 +35,7 @@ func expectWordsEqual(t *testing.T, expected *Word, word *Word) {
 		if want, got := expected.Data[i].Type, word.Data[i].Type; want != got {
 			t.Errorf("unexpected type; want: %v, got: %v", want, got)
 		}
-		if want, got := expected.Data[i].Data, word.Data[i].Data; bytes.Compare(want, got) != 0 {
+		if want, got := expected.Data[i].Data, word.Data[i].Data; !bytes.Equal(want, got) {
 			t.Errorf("unexpected data; want: %#v, got: %#v", want, got)
 		}
 	}
@@ -40,20 +43,22 @@ func expectWordsEqual(t *testing.T, expected *Word, word *Word) {
 
 // TestDict tests Dict.
 func TestDict(t *testing.T) {
+	t.Parallel()
+
 	tests := []struct {
 		name             string
-		dict             []*Word
+		dict             []*dict.Word
 		index            *idx.Word
-		expected         *Word
-		sametypesequence []DataType
+		expected         *dict.Word
+		sametypesequence []dict.DataType
 	}{
 		{
 			name: "utf",
-			dict: []*Word{
+			dict: []*dict.Word{
 				{
-					Data: []*Data{
+					Data: []*dict.Data{
 						{
-							Type: UTFTextType,
+							Type: dict.UTFTextType,
 							Data: []byte{'h', 'o', 'g', 'e'},
 						},
 					},
@@ -64,10 +69,10 @@ func TestDict(t *testing.T) {
 				Offset: uint64(0),
 				Size:   uint32(6),
 			},
-			expected: &Word{
-				Data: []*Data{
+			expected: &dict.Word{
+				Data: []*dict.Data{
 					{
-						Type: UTFTextType,
+						Type: dict.UTFTextType,
 						Data: []byte{'h', 'o', 'g', 'e'},
 					},
 				},
@@ -75,14 +80,14 @@ func TestDict(t *testing.T) {
 		},
 		{
 			name: "utf sametype",
-			sametypesequence: []DataType{
-				UTFTextType,
+			sametypesequence: []dict.DataType{
+				dict.UTFTextType,
 			},
-			dict: []*Word{
+			dict: []*dict.Word{
 				{
-					Data: []*Data{
+					Data: []*dict.Data{
 						{
-							Type: UTFTextType,
+							Type: dict.UTFTextType,
 							Data: []byte{'h', 'o', 'g', 'e'},
 						},
 					},
@@ -93,10 +98,10 @@ func TestDict(t *testing.T) {
 				Offset: uint64(0),
 				Size:   uint32(4),
 			},
-			expected: &Word{
-				Data: []*Data{
+			expected: &dict.Word{
+				Data: []*dict.Data{
 					{
-						Type: UTFTextType,
+						Type: dict.UTFTextType,
 						Data: []byte{'h', 'o', 'g', 'e'},
 					},
 				},
@@ -104,11 +109,11 @@ func TestDict(t *testing.T) {
 		},
 		{
 			name: "file type",
-			dict: []*Word{
+			dict: []*dict.Word{
 				{
-					Data: []*Data{
+					Data: []*dict.Data{
 						{
-							Type: WavType,
+							Type: dict.WavType,
 							Data: []byte{'h', 'o', 'g', 'e'},
 						},
 					},
@@ -119,10 +124,10 @@ func TestDict(t *testing.T) {
 				Offset: uint64(0),
 				Size:   uint32(9), // 1 (type) + 4 (file size) + 4 data
 			},
-			expected: &Word{
-				Data: []*Data{
+			expected: &dict.Word{
+				Data: []*dict.Data{
 					{
-						Type: WavType,
+						Type: dict.WavType,
 						Data: []byte{'h', 'o', 'g', 'e'},
 					},
 				},
@@ -130,14 +135,14 @@ func TestDict(t *testing.T) {
 		},
 		{
 			name: "file sametype",
-			sametypesequence: []DataType{
-				WavType,
+			sametypesequence: []dict.DataType{
+				dict.WavType,
 			},
-			dict: []*Word{
+			dict: []*dict.Word{
 				{
-					Data: []*Data{
+					Data: []*dict.Data{
 						{
-							Type: WavType,
+							Type: dict.WavType,
 							Data: []byte{'h', 'o', 'g', 'e'},
 						},
 					},
@@ -148,10 +153,10 @@ func TestDict(t *testing.T) {
 				Offset: uint64(0),
 				Size:   uint32(8), // 4 (file size) + 4 data
 			},
-			expected: &Word{
-				Data: []*Data{
+			expected: &dict.Word{
+				Data: []*dict.Data{
 					{
-						Type: WavType,
+						Type: dict.WavType,
 						Data: []byte{'h', 'o', 'g', 'e'},
 					},
 				},
@@ -161,20 +166,24 @@ func TestDict(t *testing.T) {
 
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
-			f, err := ioutil.TempFile("", "stardict")
+			t.Parallel()
+
+			f, err := os.CreateTemp("", "stardict")
 			if err != nil {
 				t.Fatal(err)
 			}
 			defer os.Remove(f.Name())
 
-			if f.Write(MakeDict(test.dict, test.sametypesequence)); err != nil {
+			_, err = f.Write(testutil.MakeDict(test.dict, test.sametypesequence))
+			if err != nil {
 				t.Fatal(err)
 			}
-			if _, err := f.Seek(0, io.SeekStart); err != nil {
+			_, err = f.Seek(0, io.SeekStart)
+			if err != nil {
 				t.Fatal(err)
 			}
 
-			d, err := New(f, test.sametypesequence)
+			d, err := dict.New(f, test.sametypesequence)
 			if err != nil {
 				t.Fatal(err)
 			}

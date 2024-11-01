@@ -18,9 +18,12 @@ import (
 	"bufio"
 	"bytes"
 	"encoding/binary"
+	"errors"
 	"fmt"
 	"io"
 )
+
+var errInvalidIdxOffset = errors.New("invalid idxoffsetbits")
 
 // Scanner scans an index from start to end.
 type Scanner struct {
@@ -32,7 +35,7 @@ type Scanner struct {
 // NewScanner return a new index scanner that scans the index from start to end.
 func NewScanner(r io.ReadCloser, idxoffsetbits int64) (*Scanner, error) {
 	if idxoffsetbits != 32 && idxoffsetbits != 64 {
-		return nil, fmt.Errorf("invalid idxoffsetbits: %v", idxoffsetbits)
+		return nil, fmt.Errorf("%w: %v", errInvalidIdxOffset, idxoffsetbits)
 	}
 	s := &Scanner{
 		r:             r,
@@ -51,12 +54,17 @@ func (s *Scanner) Scan() bool {
 
 // Err returns the first error encountered.
 func (s *Scanner) Err() error {
+	//nolint:wrapcheck // error should not be wrapped
 	return s.s.Err()
 }
 
 // Close closes the underlying reader.
 func (s *Scanner) Close() error {
-	return s.r.Close()
+	err := s.r.Close()
+	if err != nil {
+		return fmt.Errorf("closing idx file: %w", err)
+	}
+	return nil
 }
 
 // Word gets the next entry in the index.

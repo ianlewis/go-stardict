@@ -80,7 +80,7 @@ func tokenize(str string) []string {
 		return !unicode.IsLetter(r) && !unicode.IsNumber(r)
 	})
 
-	var stopwords = map[string]struct{}{
+	stopwords := map[string]struct{}{
 		"a": {}, "and": {}, "be": {}, "i": {},
 		"in": {}, "of": {}, "that": {}, "the": {},
 		"this": {}, "to": {},

@@ -12,16 +12,21 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package idx
+package idx_test
 
 import (
 	"bytes"
-	"io/ioutil"
+	"io"
 	"testing"
+
+	"github.com/ianlewis/go-stardict/idx"
+	"github.com/ianlewis/go-stardict/internal/testutil"
 )
 
-// expectWordsEqual compares two word lists
-func expectWordsEqual(t *testing.T, expected, words []*Word) {
+// expectWordsEqual compares two word lists.
+func expectWordsEqual(t *testing.T, expected, words []*idx.Word) {
+	t.Helper()
+
 	if want, got := len(expected), len(words); want != got {
 		t.Fatalf("unexpected # of words; want: %d, got: %d", want, got)
 		return
@@ -33,16 +38,18 @@ func expectWordsEqual(t *testing.T, expected, words []*Word) {
 	}
 }
 
-// TestIdxScanner tests IdxScanner
+// TestIdxScanner tests the IdxScanner type.
 func TestIdxScanner(t *testing.T) {
+	t.Parallel()
+
 	tests := []struct {
 		name          string
-		expected      []*Word
+		expected      []*idx.Word
 		idxoffsetbits int64
 	}{
 		{
 			name: "multi 64 bit",
-			expected: []*Word{
+			expected: []*idx.Word{
 				{
 					Word:   "hoge",
 					Offset: 123,
@@ -58,7 +65,7 @@ func TestIdxScanner(t *testing.T) {
 		},
 		{
 			name: "multi 32 bit",
-			expected: []*Word{
+			expected: []*idx.Word{
 				{
 					Word:   "hoge",
 					Offset: 123,
@@ -75,11 +82,12 @@ func TestIdxScanner(t *testing.T) {
 	}
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
+			t.Parallel()
 
-			b := MakeIndex(test.expected, test.idxoffsetbits)
+			b := testutil.MakeIndex(test.expected, test.idxoffsetbits)
 
-			var words []*Word
-			s, err := NewScanner(ioutil.NopCloser(bytes.NewReader(b)), test.idxoffsetbits)
+			var words []*idx.Word
+			s, err := idx.NewScanner(io.NopCloser(bytes.NewReader(b)), test.idxoffsetbits)
 			if err != nil {
 				t.Fatal(err)
 			}
