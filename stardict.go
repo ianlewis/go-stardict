@@ -227,7 +227,7 @@ func (s *Stardict) Search(query string) ([]*Entry, error) {
 	}
 
 	var entries []*Entry
-	for _, idxWord := range index.FullTextSearch(query) {
+	for _, idxWord := range index.Search(query) {
 		dictWord, err := d.Word(idxWord)
 		if err != nil {
 			return nil, fmt.Errorf("reading word: %w", err)
