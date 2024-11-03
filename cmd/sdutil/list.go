@@ -21,6 +21,7 @@ import (
 	"os"
 
 	"github.com/google/subcommands"
+	"github.com/rodaine/table"
 
 	"github.com/ianlewis/go-stardict"
 )
@@ -59,13 +60,18 @@ func (*listCommand) Execute(_ context.Context, f *flag.FlagSet, _ ...interface{}
 		}
 	}()
 
+	tbl := table.New("Name", "Version", "Author", "Email", "Word Count")
+
 	for _, dict := range dicts {
-		fmt.Printf("Name         %s\n", dict.Bookname())
-		fmt.Printf("Author:      %s\n", dict.Author())
-		fmt.Printf("Email:       %s\n", dict.Email())
-		fmt.Printf("Word Count:  %d\n", dict.WordCount())
-		fmt.Println()
+		tbl.AddRow(
+			dict.Bookname(),
+			dict.Version(),
+			dict.Author(),
+			dict.Email(),
+			dict.WordCount(),
+		)
 	}
+	tbl.Print()
 
 	if len(errs) > 0 {
 		return subcommands.ExitFailure

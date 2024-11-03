@@ -10,3 +10,8 @@ require (
 )
 
 require github.com/google/go-cmp v0.6.0
+
+require (
+	github.com/k3a/html2text v1.2.1 // indirect
+	github.com/rodaine/table v1.3.0 // indirect
+)
