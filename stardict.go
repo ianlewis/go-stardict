@@ -229,7 +229,12 @@ func (s *Stardict) Search(query string) ([]*Entry, error) {
 	}
 
 	var entries []*Entry
-	for _, idxWord := range index.Search(query) {
+	idxResults, err := index.Search(query)
+	if err != nil {
+		return nil, fmt.Errorf("searching index: %w", err)
+	}
+
+	for _, idxWord := range idxResults {
 		dictWord, err := d.Word(idxWord)
 		if err != nil {
 			return nil, fmt.Errorf("reading word: %w", err)

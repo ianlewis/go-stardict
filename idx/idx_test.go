@@ -193,6 +193,75 @@ func TestIdx_Search(t *testing.T) {
 				},
 			},
 		},
+		{
+			name:  "folding",
+			query: "hoge",
+			idxWords: []*idx.Word{
+				{
+					Word: "bar",
+				},
+				{
+					Word: "baz",
+				},
+				{
+					Word: "foo",
+				},
+				{
+					Word: "fuga",
+				},
+				{
+					Word: "Hoge",
+				},
+				{
+					Word: "pico",
+				},
+			},
+			idxoffsetbits: 32,
+
+			expected: []*idx.Word{
+				{
+					// NOTE: The returned index word is the value in the index
+					//       and not the folded value.
+					Word: "Hoge",
+				},
+			},
+		},
+		{
+			name:  "folding german",
+			query: "grussen",
+			idxWords: []*idx.Word{
+				{
+					Word: "bar",
+				},
+				{
+					Word: "baz",
+				},
+				{
+					Word: "foo",
+				},
+				{
+					Word: "fuga",
+				},
+				{
+					Word: "grüßen",
+				},
+				{
+					Word: "Hoge",
+				},
+				{
+					Word: "pico",
+				},
+			},
+			idxoffsetbits: 32,
+
+			expected: []*idx.Word{
+				{
+					// NOTE: The returned index word is the value in the index
+					//       and not the folded value.
+					Word: "grüßen",
+				},
+			},
+		},
 	}
 
 	for _, test := range tests {
@@ -206,7 +275,10 @@ func TestIdx_Search(t *testing.T) {
 				t.Fatalf("idx.New: %v", err)
 			}
 
-			result := index.Search(test.query)
+			result, err := index.Search(test.query)
+			if diff := cmp.Diff(nil, err); diff != "" {
+				t.Fatalf("b.Search (-want, +got):\n%s", diff)
+			}
 
 			if diff := cmp.Diff(test.expected, result); diff != "" {
 				t.Fatalf("b.Search (-want, +got):\n%s", diff)
