@@ -80,11 +80,6 @@ func (c *queryCommand) Execute(_ context.Context, f *flag.FlagSet, _ ...interfac
 
 			printEntries(entries)
 			fmt.Println()
-			// for _, e := range entries {
-			// 	// Trim off any trailing whitespace.
-			// 	fmt.Println(strings.TrimSpace(e.String()))
-			// 	fmt.Println()
-			// }
 		}
 	}
 

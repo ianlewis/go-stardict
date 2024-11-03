@@ -192,7 +192,6 @@ func (s *Stardict) Description() string {
 
 // Author returns the dictionary author. This field is optional for
 // dictionaries.
-
 func (s *Stardict) Author() string {
 	return s.author
 }
