@@ -16,8 +16,6 @@ package idx
 
 import (
 	"io"
-	"strings"
-	"unicode"
 )
 
 // Word is an .idx file entry.
@@ -32,15 +30,12 @@ type Word struct {
 // Scanner to read the .idx file and generate their own more robust search
 // index.
 type Idx struct {
-	idx   map[string][]int
 	words []*Word
 }
 
 // New returns a new in-memory index.
 func New(r io.ReadCloser, idxoffsetbits int64) (*Idx, error) {
-	idx := &Idx{
-		idx: map[string][]int{},
-	}
+	idx := &Idx{}
 
 	i := 0
 	s, err := NewScanner(r, idxoffsetbits)
@@ -48,10 +43,6 @@ func New(r io.ReadCloser, idxoffsetbits int64) (*Idx, error) {
 		return nil, err
 	}
 	for s.Scan() {
-		e := s.Word()
-		for _, t := range tokenize(e.Word) {
-			idx.idx[t] = append(idx.idx[t], i)
-		}
 		idx.words = append(idx.words, s.Word())
 		i++
 	}
@@ -62,37 +53,32 @@ func New(r io.ReadCloser, idxoffsetbits int64) (*Idx, error) {
 	return idx, nil
 }
 
-// FullTextSearch searches full text of index entries.
-func (idx *Idx) FullTextSearch(str string) []*Word {
-	var result []*Word
-	for _, w := range tokenize(str) {
-		for _, id := range idx.idx[w] {
-			result = append(result, idx.words[id])
-		}
-	}
-	return result
-}
-
-// tokenize tokenizes English text in a very basic way.
-func tokenize(str string) []string {
-	words := strings.FieldsFunc(str, func(r rune) bool {
-		// Split on any character that is not a letter or a number.
-		return !unicode.IsLetter(r) && !unicode.IsNumber(r)
-	})
-
-	stopwords := map[string]struct{}{
-		"a": {}, "and": {}, "be": {}, "i": {},
-		"in": {}, "of": {}, "that": {}, "the": {},
-		"this": {}, "to": {},
-	}
-
-	var tokens []string
-	for _, w := range words {
-		t := strings.ToLower(w)
-		if _, ok := stopwords[t]; !ok {
-			tokens = append(tokens, t)
+// Search performs a query of the index and returns matching words.
+func (idx *Idx) Search(query string) []*Word {
+	start := 0
+	end := len(idx.words) - 1
+	for start <= end {
+		pivot := (start + end) / 2
+		switch {
+		case idx.words[pivot].Word < query:
+			start = pivot + 1
+		case idx.words[pivot].Word > query:
+			end = pivot - 1
+		default:
+			// We have found a matching word.
+			// Multiple word entries may have the same value we must find the
+			// first and iterate over the index until we have found all matches.
+			i := pivot
+			for i > 0 && idx.words[i-1].Word == query {
+				i--
+			}
+			j := pivot
+			for j+1 < len(idx.words) && idx.words[j+1].Word == query {
+				j++
+			}
+			return idx.words[i : j+1]
 		}
 	}
 
-	return tokens
+	return nil
 }
