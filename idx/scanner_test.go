@@ -45,7 +45,7 @@ func TestIdxScanner(t *testing.T) {
 	tests := []struct {
 		name          string
 		expected      []*idx.Word
-		idxoffsetbits int64
+		idxoffsetbits int
 	}{
 		{
 			name: "multi 64 bit",
@@ -87,7 +87,9 @@ func TestIdxScanner(t *testing.T) {
 			b := testutil.MakeIndex(test.expected, test.idxoffsetbits)
 
 			var words []*idx.Word
-			s, err := idx.NewScanner(io.NopCloser(bytes.NewReader(b)), test.idxoffsetbits)
+			s, err := idx.NewScanner(io.NopCloser(bytes.NewReader(b)), &idx.Options{
+				OffsetBits: test.idxoffsetbits,
+			})
 			if err != nil {
 				t.Fatal(err)
 			}

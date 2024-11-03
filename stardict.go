@@ -15,17 +15,13 @@
 package stardict
 
 import (
-	"compress/gzip"
 	"errors"
 	"fmt"
-	"io"
 	"io/fs"
 	"os"
 	"path/filepath"
 	"strconv"
 	"strings"
-
-	"github.com/pebbe/dictzip"
 
 	"github.com/ianlewis/go-stardict/dict"
 	"github.com/ianlewis/go-stardict/idx"
@@ -49,7 +45,7 @@ type Stardict struct {
 	wordcount        int64
 	synwordcount     int64
 	idxfilesize      int64
-	idxoffsetbits    int64
+	idxoffsetbits    int
 	author           string
 	email            string
 	website          string
@@ -146,10 +142,11 @@ func Open(path string) (*Stardict, error) {
 
 	idxoffsetbits := s.ifo.Value("idxoffsetbits")
 	if idxoffsetbits != "" && s.version == "3.0.0" {
-		s.idxoffsetbits, err = strconv.ParseInt(idxoffsetbits, 10, 64)
+		idxoffsetbits64, err := strconv.ParseInt(idxoffsetbits, 10, 64)
 		if err != nil {
 			return nil, fmt.Errorf("invalid idxoffsetbits: %w", err)
 		}
+		s.idxoffsetbits = int(idxoffsetbits64)
 	}
 
 	synwordcount := s.ifo.Value("synwordcount")
@@ -251,11 +248,9 @@ func (s *Stardict) Search(query string) ([]*Entry, error) {
 // the underlying reader so Close should be called on the scanner when
 // finished.
 func (s *Stardict) IndexScanner() (*idx.Scanner, error) {
-	f, err := s.openIdxFile()
-	if err != nil {
-		return nil, err
-	}
-	sc, err := idx.NewScanner(f, s.idxoffsetbits)
+	sc, err := idx.NewScannerFromIfoPath(s.ifoPath, &idx.Options{
+		OffsetBits: s.idxoffsetbits,
+	})
 	if err != nil {
 		return nil, fmt.Errorf("creating index scanner: %w", err)
 	}
@@ -267,9 +262,16 @@ func (s *Stardict) Index() (*idx.Idx, error) {
 	if s.idx != nil {
 		return s.idx, nil
 	}
-	if err := s.openIdx(); err != nil {
+
+	// Open the .idx file.
+	index, err := idx.NewFromIfoPath(s.ifoPath, &idx.Options{
+		OffsetBits: s.idxoffsetbits,
+	})
+	if err != nil {
 		return nil, err
 	}
+	s.idx = index
+
 	return s.idx, nil
 }
 
@@ -278,10 +280,16 @@ func (s *Stardict) Dict() (*dict.Dict, error) {
 	if s.dict != nil {
 		return s.dict, nil
 	}
-	// Open the dict file.
-	if err := s.openDict(); err != nil {
+
+	// Open the .dict file.
+	d, err := dict.NewFromIfoPath(s.ifoPath, &dict.Options{
+		SameTypeSequence: s.sametypesequence,
+	})
+	if err != nil {
 		return nil, err
 	}
+	s.dict = d
+
 	return s.dict, nil
 }
 
@@ -292,104 +300,5 @@ func (s *Stardict) Close() error {
 			return fmt.Errorf("closing dict file: %w", err)
 		}
 	}
-	return nil
-}
-
-func (s *Stardict) openIdxFile() (*os.File, error) {
-	ifoExt := filepath.Ext(s.ifoPath)
-	baseName := strings.TrimSuffix(s.ifoPath, ifoExt)
-
-	idxExts := []string{".idx.gz", ".idx", ".IDX", ".IDX.gz", ".IDX.GZ"}
-	var idxPath string
-	for _, ext := range idxExts {
-		idxPath = baseName + ext
-		if _, err := os.Stat(idxPath); err == nil {
-			break
-		}
-	}
-	if idxPath == "" {
-		return nil, errIdxNotFound
-	}
-
-	f, err := os.Open(idxPath)
-	if err != nil {
-		return nil, fmt.Errorf("opening index file: %w", err)
-	}
-	return f, nil
-}
-
-func (s *Stardict) openIdx() error {
-	var r io.ReadCloser
-	var err error
-	f, err := s.openIdxFile()
-	if err != nil {
-		return err
-	}
-	defer f.Close()
-	idxPath := f.Name()
-	r = f
-
-	idxExt := filepath.Ext(idxPath)
-	//nolint:gocritic // strings.EqualFold should not be used here.
-	if strings.ToLower(idxExt) == ".gz" {
-		r, err = gzip.NewReader(r)
-		if err != nil {
-			return fmt.Errorf("error opening %q: %w", idxPath, err)
-		}
-		defer r.Close()
-	}
-
-	index, err := idx.New(r, s.idxoffsetbits)
-	if err != nil {
-		return fmt.Errorf("error reading %q: %w", idxPath, err)
-	}
-
-	s.idx = index
-
-	return nil
-}
-
-func (s *Stardict) openDict() error {
-	ifoExt := filepath.Ext(s.ifoPath)
-	baseName := strings.TrimSuffix(s.ifoPath, ifoExt)
-
-	dictExts := []string{".dict.dz", ".dict", ".DICT", ".DICT.dz", ".DICT.DZ"}
-	var dictPath string
-	for _, ext := range dictExts {
-		dictPath = baseName + ext
-		if _, err := os.Stat(dictPath); err == nil {
-			break
-		}
-	}
-	if dictPath == "" {
-		return errDictNotFound
-	}
-
-	var r io.ReaderAt
-	f, err := os.Open(dictPath)
-	if err != nil {
-		return fmt.Errorf("error opening %q: %w", dictPath, err)
-	}
-	r = f
-
-	var dz *dictzip.Reader
-	dictExt := filepath.Ext(dictPath)
-	//nolint:gocritic // strings.EqualFold should not be used here.
-	if strings.ToLower(dictExt) == ".dz" {
-		dz, err = dictzip.NewReader(f)
-		if err != nil {
-			return fmt.Errorf("opening dictzip: %w", err)
-		}
-		r = dz
-	}
-
-	d, err := dict.New(r, s.sametypesequence)
-	if err != nil {
-		return fmt.Errorf("error reading %q: %w", dictPath, err)
-	}
-
-	s.dict = d
-	s.dictFile = f
-
 	return nil
 }

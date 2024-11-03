@@ -33,7 +33,7 @@ func TestIdx_Search(t *testing.T) {
 		name          string
 		query         string
 		idxWords      []*idx.Word
-		idxoffsetbits int64
+		idxoffsetbits int
 
 		expected []*idx.Word
 	}{
@@ -270,7 +270,9 @@ func TestIdx_Search(t *testing.T) {
 
 			b := testutil.MakeIndex(test.idxWords, test.idxoffsetbits)
 
-			index, err := idx.New(io.NopCloser(bytes.NewReader(b)), test.idxoffsetbits)
+			index, err := idx.New(io.NopCloser(bytes.NewReader(b)), &idx.Options{
+				OffsetBits: test.idxoffsetbits,
+			})
 			if err != nil {
 				t.Fatalf("idx.New: %v", err)
 			}
