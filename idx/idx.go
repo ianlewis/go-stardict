@@ -127,7 +127,7 @@ func openIdxFile(ifoPath string) (*os.File, error) {
 		return nil, fmt.Errorf("opening .idx file: %w", err)
 	}
 
-	return f, err
+	return f, nil
 }
 
 // NewFromIfoPath returns a new in-memory index.

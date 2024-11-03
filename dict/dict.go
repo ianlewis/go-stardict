@@ -64,14 +64,17 @@ type dictReader struct {
 	dz *dictzip.Reader
 }
 
-func (r *dictReader) ReadAt(p []byte, off int64) (n int, err error) {
+func (r *dictReader) ReadAt(p []byte, off int64) (int, error) {
 	if r.dz != nil {
+		//nolint:wrapcheck // error wrapping is unnecessary.
 		return r.dz.ReadAt(p, off)
 	}
+	//nolint:wrapcheck // error wrapping is unnecessary.
 	return r.f.ReadAt(p, off)
 }
 
 func (r *dictReader) Close() error {
+	//nolint:wrapcheck // error wrapping is unnecessary.
 	return r.f.Close()
 }
 
@@ -281,5 +284,6 @@ func (d *Dict) Word(e *idx.Word) (*Word, error) {
 
 // Close closes the underlying reader for the .dict file.
 func (d *Dict) Close() error {
+	//nolint:wrapcheck // error wrapping is unnecessary.
 	return d.r.Close()
 }

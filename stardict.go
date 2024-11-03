@@ -54,8 +54,6 @@ type Stardict struct {
 }
 
 var (
-	errDictNotFound   = errors.New("no dict file found")
-	errIdxNotFound    = errors.New("no .idx file found")
 	errNoBookname     = errors.New("missing bookname")
 	errInvalidVersion = errors.New("invalid version")
 	errInvalidMagic   = errors.New("invalid magic data")
@@ -141,8 +139,10 @@ func Open(path string) (*Stardict, error) {
 	}
 
 	idxoffsetbits := s.ifo.Value("idxoffsetbits")
+	// TODO: version check should be > 3.0.0
 	if idxoffsetbits != "" && s.version == "3.0.0" {
-		idxoffsetbits64, err := strconv.ParseInt(idxoffsetbits, 10, 64)
+		var idxoffsetbits64 int64
+		idxoffsetbits64, err = strconv.ParseInt(idxoffsetbits, 10, 64)
 		if err != nil {
 			return nil, fmt.Errorf("invalid idxoffsetbits: %w", err)
 		}
@@ -268,7 +268,7 @@ func (s *Stardict) Index() (*idx.Idx, error) {
 		OffsetBits: s.idxoffsetbits,
 	})
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("opening index: %w", err)
 	}
 	s.idx = index
 
@@ -286,7 +286,7 @@ func (s *Stardict) Dict() (*dict.Dict, error) {
 		SameTypeSequence: s.sametypesequence,
 	})
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("opening dict: %w", err)
 	}
 	s.dict = d
 
