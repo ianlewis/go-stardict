@@ -169,7 +169,7 @@ func Open(path string) (*Stardict, error) {
 
 	s.author = s.ifo.Value("author")
 	s.email = s.ifo.Value("email")
-	s.description = s.ifo.Value("description")
+	s.description = strings.ReplaceAll(s.ifo.Value("description"), "<br>", "\n")
 	s.website = s.ifo.Value("website")
 
 	// TODO: support the .syn file.
@@ -184,12 +184,15 @@ func (s *Stardict) Bookname() string {
 	return s.bookname
 }
 
-// Description returns the dictionary description.
+// Description returns the dictionary description. This field is optional for
+// dictionaries. <br> has been replaced with '\n'.
 func (s *Stardict) Description() string {
 	return s.description
 }
 
-// Author returns the dictionary author.
+// Author returns the dictionary author. This field is optional for
+// dictionaries.
+
 func (s *Stardict) Author() string {
 	return s.author
 }
