@@ -97,12 +97,16 @@ func printEntries(entries []*stardict.Entry) {
 		for _, d := range e.Data() {
 			// string will work for PhoneticType, UTFTextType, YinBiaoOrKataType, HTMLType
 			switch d.Type {
-			case dict.PhoneticType, dict.UTFTextType, dict.YinBiaoOrKataType:
+			case dict.PhoneticType, dict.UTFTextType, dict.YinBiaoOrKataType, dict.MediaWikiType, dict.LocaleTextType:
 				text += string(d.Data) + "\n"
 			case dict.HTMLType:
 				text += html2text.HTML2Text(string(d.Data)) + "\n"
-			default:
+			case dict.PangoTextType, dict.XDXFType:
 				// TODO(#22): Support XDXF format.
+			case dict.PowerWordType, dict.WordNetType, dict.ResourceFileListType, dict.WavType, dict.PictureType,
+				dict.ExperimentalType:
+				// TODO: Support other formats.
+			default:
 			}
 		}
 
