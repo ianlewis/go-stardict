@@ -245,7 +245,7 @@ func TestDict_Word(t *testing.T) {
 	}
 }
 
-// TestDict_NewFromIfoPath tests NewFromIfoPath
+// TestDict_NewFromIfoPath tests NewFromIfoPath.
 func TestDict_NewFromIfoPath(t *testing.T) {
 	t.Parallel()
 
