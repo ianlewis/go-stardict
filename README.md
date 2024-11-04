@@ -1,6 +1,7 @@
 # go-stardict
 
 [![Go Reference](https://pkg.go.dev/badge/github.com/ianlewis/go-stardict.svg)](https://pkg.go.dev/github.com/ianlewis/go-stardict)
+[![codecov](https://codecov.io/gh/ianlewis/go-stardict/graph/badge.svg?token=2HTI2KXI93)](https://codecov.io/gh/ianlewis/go-stardict)
 [![Tests](https://github.com/ianlewis/go-stardict/actions/workflows/pre-submit.units.yml/badge.svg)](https://github.com/ianlewis/go-stardict/actions/workflows/pre-submit.units.yml)
 [![Go Report Card](https://goreportcard.com/badge/github.com/ianlewis/go-stardict)](https://goreportcard.com/report/github.com/ianlewis/go-stardict)
 
@@ -20,9 +21,11 @@ versions and compatibility.
 - \[x] Efficient access for large files.
 - \[x] Dictzip support.
 - \[x] Support for concurrent access.
-- \[ ] Synonym support (.syn file).
-- \[ ] Support for tree dictionaries (.tdx file).
-- \[ ] Support for Resource Storage (res/ directory).
+- \[ ] Synonym support (.syn file) (#2).
+- \[ ] Support for tree dictionaries (.tdx file) (#3).
+- \[ ] Support for Resource Storage (res/ directory) (#4).
+- \[ ] Glob/Wildcard search support (#21).
+- \[ ] Capitalization, diacritic, punctuation, and whitespace folding (#19, #25).
 
 ## Installation
 
