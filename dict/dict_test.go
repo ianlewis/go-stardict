@@ -183,7 +183,9 @@ func TestDict(t *testing.T) {
 				t.Fatal(err)
 			}
 
-			d, err := dict.New(f, test.sametypesequence)
+			d, err := dict.New(f, &dict.Options{
+				SameTypeSequence: test.sametypesequence,
+			})
 			if err != nil {
 				t.Fatal(err)
 			}

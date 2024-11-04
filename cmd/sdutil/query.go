@@ -21,11 +21,9 @@ import (
 	"os"
 
 	"github.com/google/subcommands"
-	"github.com/k3a/html2text"
 	"github.com/rodaine/table"
 
 	"github.com/ianlewis/go-stardict"
-	"github.com/ianlewis/go-stardict/dict"
 )
 
 type queryCommand struct{}
@@ -78,7 +76,13 @@ func (c *queryCommand) Execute(_ context.Context, f *flag.FlagSet, _ ...interfac
 			fmt.Println(d.Bookname())
 			fmt.Println("-------------------------------------------------------------------------------")
 
-			printEntries(entries)
+			tbl := table.New("Title", "Data").WithHeaderFormatter(func(string, ...interface{}) string { return "" })
+			for _, e := range entries {
+				tbl.AddRow(e.Title(), e.Data().String())
+			}
+
+			tbl.Print()
+
 			fmt.Println()
 		}
 	}
@@ -88,30 +92,4 @@ func (c *queryCommand) Execute(_ context.Context, f *flag.FlagSet, _ ...interfac
 	}
 
 	return subcommands.ExitSuccess
-}
-
-func printEntries(entries []*stardict.Entry) {
-	tbl := table.New("Title", "Data").WithHeaderFormatter(func(string, ...interface{}) string { return "" })
-	for _, e := range entries {
-		text := ""
-		for _, d := range e.Data() {
-			// string will work for PhoneticType, UTFTextType, YinBiaoOrKataType, HTMLType
-			switch d.Type {
-			case dict.PhoneticType, dict.UTFTextType, dict.YinBiaoOrKataType, dict.MediaWikiType, dict.LocaleTextType:
-				text += string(d.Data) + "\n"
-			case dict.HTMLType:
-				text += html2text.HTML2Text(string(d.Data)) + "\n"
-			case dict.PangoTextType, dict.XDXFType:
-				// TODO(#22): Support XDXF format.
-			case dict.PowerWordType, dict.WordNetType, dict.ResourceFileListType, dict.WavType, dict.PictureType,
-				dict.ExperimentalType:
-				// TODO: Support other formats.
-			default:
-			}
-		}
-
-		tbl.AddRow(e.Title(), text)
-	}
-
-	tbl.Print()
 }

@@ -32,18 +32,33 @@ type Scanner struct {
 	idxoffsetbits int
 }
 
-// NewScanner return a new index scanner that scans the index from start to end.
-func NewScanner(r io.ReadCloser, idxoffsetbits int64) (*Scanner, error) {
-	if idxoffsetbits != 32 && idxoffsetbits != 64 {
-		return nil, fmt.Errorf("%w: %v", errInvalidIdxOffset, idxoffsetbits)
+// NewScanner return a new index scanner that scans the index from start to
+// end. The Scanner assumes ownership of the reader and should be closed with the
+// Close method.
+func NewScanner(r io.ReadCloser, options *Options) (*Scanner, error) {
+	if options == nil {
+		options = DefaultOptions
+	}
+
+	if options.OffsetBits != 32 && options.OffsetBits != 64 {
+		return nil, fmt.Errorf("%w: %v", errInvalidIdxOffset, options.OffsetBits)
 	}
 	s := &Scanner{
 		r:             r,
 		s:             bufio.NewScanner(bufio.NewReader(r)),
-		idxoffsetbits: int(idxoffsetbits),
+		idxoffsetbits: options.OffsetBits,
 	}
 	s.s.Split(s.splitIndex)
 	return s, nil
+}
+
+// NewScannerFromIfoPath returns a new in-memory index.
+func NewScannerFromIfoPath(ifoPath string, options *Options) (*Scanner, error) {
+	f, err := openIdxFile(ifoPath)
+	if err != nil {
+		return nil, err
+	}
+	return NewScanner(f, options)
 }
 
 // Scan advances the index to the next index entry. It returns false if the

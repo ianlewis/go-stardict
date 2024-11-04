@@ -23,7 +23,7 @@ import (
 )
 
 // MakeIndex make a test index given a list of words.
-func MakeIndex(words []*idx.Word, idxoffsetbits int64) []byte {
+func MakeIndex(words []*idx.Word, idxoffsetbits int) []byte {
 	b := []byte{}
 	for _, w := range words {
 		b = append(b, []byte(w.Word)...)

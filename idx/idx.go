@@ -15,8 +15,12 @@
 package idx
 
 import (
+	"compress/gzip"
+	"errors"
 	"fmt"
 	"io"
+	"os"
+	"path/filepath"
 	"slices"
 	"strings"
 	"unicode"
@@ -44,6 +48,17 @@ type foldedWord struct {
 	word   *Word
 }
 
+// Options are options for the idx data.
+type Options struct {
+	// OffsetBits are the number of bits in the offset fields.
+	OffsetBits int
+}
+
+// DefaultOptions is the default options for an Idx.
+var DefaultOptions = &Options{
+	OffsetBits: 32,
+}
+
 // Idx is a very basic implementation of an in memory search index.
 // Implementers of dictionaries apps or tools may wish to consider using
 // Scanner to read the .idx file and generate their own more robust search
@@ -54,7 +69,11 @@ type Idx struct {
 }
 
 // New returns a new in-memory index.
-func New(r io.ReadCloser, idxoffsetbits int64) (*Idx, error) {
+func New(r io.ReadCloser, options *Options) (*Idx, error) {
+	if options == nil {
+		options = DefaultOptions
+	}
+
 	idx := &Idx{
 		foldTransformer: transform.Chain(
 			norm.NFD,
@@ -65,7 +84,7 @@ func New(r io.ReadCloser, idxoffsetbits int64) (*Idx, error) {
 	}
 
 	i := 0
-	s, err := NewScanner(r, idxoffsetbits)
+	s, err := NewScanner(r, options)
 	if err != nil {
 		return nil, fmt.Errorf("creating index scanner: %w", err)
 	}
@@ -92,6 +111,61 @@ func New(r io.ReadCloser, idxoffsetbits int64) (*Idx, error) {
 	})
 
 	return idx, nil
+}
+
+func openIdxFile(ifoPath string) (*os.File, error) {
+	baseName := strings.TrimSuffix(ifoPath, filepath.Ext(ifoPath))
+
+	idxExts := []string{
+		".idx",
+		".idx.gz",
+		".idx.GZ",
+		".idx.dz",
+		".idx.DZ",
+		".IDX",
+		".IDX.gz",
+		".IDX.GZ",
+		".IDX.dz",
+		".IDX.DZ",
+	}
+	var f *os.File
+	var err error
+	for _, ext := range idxExts {
+		f, err = os.Open(baseName + ext)
+		if err == nil {
+			break
+		}
+		if !errors.Is(err, os.ErrNotExist) {
+			return nil, fmt.Errorf("opening .idx file: %w", err)
+		}
+	}
+
+	// Catch the case when no .idx file was found.
+	if err != nil {
+		return nil, fmt.Errorf("opening .idx file: %w", err)
+	}
+
+	return f, nil
+}
+
+// NewFromIfoPath returns a new in-memory index.
+func NewFromIfoPath(ifoPath string, options *Options) (*Idx, error) {
+	var r io.ReadCloser
+	f, err := openIdxFile(ifoPath)
+	if err != nil {
+		return nil, err
+	}
+	r = f
+
+	idxExt := strings.ToLower(filepath.Ext(f.Name()))
+	if idxExt == ".gz" || idxExt == ".dz" {
+		r, err = gzip.NewReader(r)
+		if err != nil {
+			return nil, fmt.Errorf("creating .ifo gzip reader: %w", err)
+		}
+	}
+
+	return New(r, options)
 }
 
 // Search performs a query of the index and returns matching words.

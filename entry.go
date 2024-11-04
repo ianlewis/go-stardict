@@ -15,13 +15,28 @@
 package stardict
 
 import (
+	"strings"
+
 	"github.com/ianlewis/go-stardict/dict"
 )
+
+// DataList is entry's data.
+type DataList []*dict.Data
+
+// String returns a string representation of the data list.
+func (l DataList) String() string {
+	var b strings.Builder
+	for _, d := range l {
+		_, _ = b.WriteString(d.String())
+		_, _ = b.WriteRune('\n')
+	}
+	return b.String()
+}
 
 // Entry is a dictionary entry.
 type Entry struct {
 	word string
-	data []*dict.Data
+	data DataList
 }
 
 // Title return the entry's title.
@@ -30,18 +45,16 @@ func (e *Entry) Title() string {
 }
 
 // Data returns the entry's data entries.
-func (e *Entry) Data() []*dict.Data {
+func (e *Entry) Data() DataList {
 	return e.data
 }
 
 // String returns a string representation of the Entry.
 func (e *Entry) String() string {
-	str := e.word + "\n"
-	for _, d := range e.Data() {
-		// TODO: support rendering more types as text
-		// TODO: strip tags from html
-		// string will work for PhoneticType, UTFTextType, YinBiaoOrKataType, HTMLType
-		str += string(d.Data) + "\n"
-	}
-	return str
+	var b strings.Builder
+	_, _ = b.WriteString(e.word)
+	_, _ = b.WriteRune('\n')
+	_, _ = b.WriteString(e.data.String())
+	_, _ = b.WriteRune('\n')
+	return b.String()
 }

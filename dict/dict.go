@@ -22,6 +22,12 @@ import (
 	"fmt"
 	"io"
 	"math"
+	"os"
+	"path/filepath"
+	"strings"
+
+	"github.com/k3a/html2text"
+	"github.com/pebbe/dictzip"
 
 	"github.com/ianlewis/go-stardict/idx"
 )
@@ -31,9 +37,21 @@ var (
 	errWordOffsetTooLarge = errors.New("word offset too large")
 )
 
+// ReaderAtCloser is an interface that wraps the io.ReaderAt and io.Closer
+// interfaces.
+type ReaderAtCloser interface {
+	io.ReaderAt
+	io.Closer
+}
+
+// Options are options for the dict data.
+type Options struct {
+	SameTypeSequence []DataType
+}
+
 // Dict represents a Stardict dictionary's dictionary data.
 type Dict struct {
-	r                io.ReaderAt
+	r                ReaderAtCloser
 	sametypesequence []DataType
 }
 
@@ -48,6 +66,29 @@ type Word struct {
 // represent file-like data that starts with a 32-bit size followed by file
 // data.
 type DataType byte
+
+// dictReader is a reader that reads either from a dictzipped file if
+// compressed or directly from the file of not compressed.
+type dictReader struct {
+	f  *os.File
+	dz *dictzip.Reader
+}
+
+// ReadAt implements io.ReaderAt.ReadAt.
+func (r *dictReader) ReadAt(p []byte, off int64) (int, error) {
+	if r.dz != nil {
+		//nolint:wrapcheck // error wrapping is unnecessary.
+		return r.dz.ReadAt(p, off)
+	}
+	//nolint:wrapcheck // error wrapping is unnecessary.
+	return r.f.ReadAt(p, off)
+}
+
+// Close implements io.Closer.Close.
+func (r *dictReader) Close() error {
+	//nolint:wrapcheck // error wrapping is unnecessary.
+	return r.f.Close()
+}
 
 const (
 	// UTFTextType is utf-8 text.
@@ -101,11 +142,32 @@ type Data struct {
 	Data []byte
 }
 
+// String returns a string representation of the data.
+func (d *Data) String() string {
+	// string will work for PhoneticType, UTFTextType, YinBiaoOrKataType, HTMLType
+	switch d.Type {
+	case PhoneticType, UTFTextType, YinBiaoOrKataType, MediaWikiType, LocaleTextType:
+		return string(d.Data)
+	case HTMLType:
+		return html2text.HTML2Text(string(d.Data))
+	case PangoTextType, XDXFType, PowerWordType, WordNetType, ResourceFileListType,
+		WavType, PictureType, ExperimentalType:
+		// TODO(#22): Support other formats.
+		return ""
+	default:
+		return ""
+	}
+}
+
 // New returns a new Dict from the given reader. Dict takes ownership of the
 // reader. The reader can be closed via the Dict's Close method.
-func New(r io.ReaderAt, sametypesequence []DataType) (*Dict, error) {
+func New(r ReaderAtCloser, options *Options) (*Dict, error) {
+	if options == nil {
+		options = &Options{}
+	}
+
 	// verify sametypesequence
-	for _, s := range sametypesequence {
+	for _, s := range options.SameTypeSequence {
 		switch s {
 		case UTFTextType,
 			LocaleTextType,
@@ -128,8 +190,53 @@ func New(r io.ReaderAt, sametypesequence []DataType) (*Dict, error) {
 
 	return &Dict{
 		r:                r,
-		sametypesequence: sametypesequence,
+		sametypesequence: options.SameTypeSequence,
 	}, nil
+}
+
+// NewFromIfoPath opens the dict file given the path to the .ifo file.
+func NewFromIfoPath(ifoPath string, options *Options) (*Dict, error) {
+	baseName := strings.TrimSuffix(ifoPath, filepath.Ext(ifoPath))
+
+	dictExts := []string{
+		".dict",
+		".dict.dz",
+		".dict.DZ",
+		".DICT",
+		".DICT.dz",
+		".DICT.DZ",
+	}
+	var f *os.File
+	var err error
+	for _, ext := range dictExts {
+		f, err = os.Open(baseName + ext)
+		if err == nil {
+			break
+		}
+		if !errors.Is(err, os.ErrNotExist) {
+			return nil, fmt.Errorf("opening .dict file: %w", err)
+		}
+	}
+
+	// Catch the case when no .dict file was found.
+	if err != nil {
+		return nil, fmt.Errorf("opening .dict file: %w", err)
+	}
+
+	r := &dictReader{
+		f: f,
+	}
+
+	dictExt := filepath.Ext(f.Name())
+	//nolint:gocritic // strings.EqualFold should not be used here.
+	if strings.ToLower(dictExt) == ".dz" {
+		r.dz, err = dictzip.NewReader(f)
+		if err != nil {
+			return nil, fmt.Errorf("opening dictzip: %w", err)
+		}
+	}
+
+	return New(r, options)
 }
 
 // Word retrieves the word for the given index entry from the
@@ -207,4 +314,10 @@ func (d *Dict) Word(e *idx.Word) (*Word, error) {
 	return &Word{
 		Data: wordData,
 	}, nil
+}
+
+// Close closes the underlying reader for the .dict file.
+func (d *Dict) Close() error {
+	//nolint:wrapcheck // error wrapping is unnecessary.
+	return d.r.Close()
 }
