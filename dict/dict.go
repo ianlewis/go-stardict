@@ -36,6 +36,13 @@ var (
 	errWordOffsetTooLarge = errors.New("word offset too large")
 )
 
+// ReaderAtCloser is an interface that wraps the io.ReaderAt and io.Closer
+// interfaces.
+type ReaderAtCloser interface {
+	io.ReaderAt
+	io.Closer
+}
+
 // Options are options for the dict data.
 type Options struct {
 	SameTypeSequence []DataType
@@ -59,11 +66,14 @@ type Word struct {
 // data.
 type DataType byte
 
+// dictReader is a reader that reads either from a dictzipped file if
+// compressed or directly from the file of not compressed.
 type dictReader struct {
 	f  *os.File
 	dz *dictzip.Reader
 }
 
+// ReadAt implements io.ReaderAt.ReadAt
 func (r *dictReader) ReadAt(p []byte, off int64) (int, error) {
 	if r.dz != nil {
 		//nolint:wrapcheck // error wrapping is unnecessary.
@@ -73,6 +83,7 @@ func (r *dictReader) ReadAt(p []byte, off int64) (int, error) {
 	return r.f.ReadAt(p, off)
 }
 
+// Close implements io.Closer.Close
 func (r *dictReader) Close() error {
 	//nolint:wrapcheck // error wrapping is unnecessary.
 	return r.f.Close()
@@ -128,11 +139,6 @@ const (
 type Data struct {
 	Type DataType
 	Data []byte
-}
-
-type ReaderAtCloser interface {
-	io.ReaderAt
-	io.Closer
 }
 
 // New returns a new Dict from the given reader. Dict takes ownership of the
