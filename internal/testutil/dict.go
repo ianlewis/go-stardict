@@ -55,26 +55,28 @@ func MakeTempDict(t *testing.T, words []*dict.Word, opts *MakeDictOptions) strin
 		f.Close()
 
 		fmt.Println(path)
-		err := dictzip.Write(bytes.NewReader(d), path, 9)
+		err = dictzip.Write(bytes.NewReader(d), path, 9)
 		if err != nil {
 			t.Fatal(err)
 		}
 
 		return path
-	} else {
-		defer f.Close()
-
-		_, err = f.Write(d)
-		if err != nil {
-			t.Fatal(err)
-		}
-
-		return f.Name()
 	}
+
+	defer f.Close()
+
+	_, err = f.Write(d)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	return f.Name()
 }
 
 // MakeDict creates a test .dict file.
 func MakeDict(t *testing.T, words []*dict.Word, sametypesequence []dict.DataType) []byte {
+	t.Helper()
+
 	b := []byte{}
 	for _, w := range words {
 		for i, d := range w.Data {
