@@ -46,6 +46,11 @@ type ReaderAtCloser interface {
 
 // Options are options for the dict data.
 type Options struct {
+	// SameTypeSequence is an option that indicates that each word in the .dict
+	// file will have the same sequence of data types. This is equivalent to
+	// the sametypesequence option from the .ifo file..
+	//
+	// See: https://github.com/huzheng001/stardict-3/blob/master/dict/doc/StarDictFileFormat
 	SameTypeSequence []DataType
 }
 
@@ -227,9 +232,8 @@ func NewFromIfoPath(ifoPath string, options *Options) (*Dict, error) {
 		f: f,
 	}
 
-	dictExt := filepath.Ext(f.Name())
-	//nolint:gocritic // strings.EqualFold should not be used here.
-	if strings.ToLower(dictExt) == ".dz" {
+	dictExt := strings.ToLower(filepath.Ext(f.Name()))
+	if dictExt == ".dz" {
 		r.dz, err = dictzip.NewReader(f)
 		if err != nil {
 			return nil, fmt.Errorf("opening dictzip: %w", err)
