@@ -139,7 +139,7 @@ func Open(path string) (*Stardict, error) {
 	}
 
 	idxoffsetbits := s.ifo.Value("idxoffsetbits")
-	// TODO: version check should be > 3.0.0
+	// TODO(#28): version check should be > 3.0.0
 	if idxoffsetbits != "" && s.version == "3.0.0" {
 		var idxoffsetbits64 int64
 		idxoffsetbits64, err = strconv.ParseInt(idxoffsetbits, 10, 64)
