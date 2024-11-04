@@ -26,6 +26,7 @@ import (
 	"path/filepath"
 	"strings"
 
+	"github.com/k3a/html2text"
 	"github.com/pebbe/dictzip"
 
 	"github.com/ianlewis/go-stardict/idx"
@@ -139,6 +140,23 @@ const (
 type Data struct {
 	Type DataType
 	Data []byte
+}
+
+// String returns a string representation of the data.
+func (d *Data) String() string {
+	// string will work for PhoneticType, UTFTextType, YinBiaoOrKataType, HTMLType
+	switch d.Type {
+	case PhoneticType, UTFTextType, YinBiaoOrKataType, MediaWikiType, LocaleTextType:
+		return string(d.Data)
+	case HTMLType:
+		return html2text.HTML2Text(string(d.Data))
+	case PangoTextType, XDXFType, PowerWordType, WordNetType, ResourceFileListType,
+		WavType, PictureType, ExperimentalType:
+		// TODO(#22): Support other formats.
+		return ""
+	default:
+		return ""
+	}
 }
 
 // New returns a new Dict from the given reader. Dict takes ownership of the
