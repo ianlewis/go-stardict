@@ -74,7 +74,7 @@ type dictReader struct {
 	dz *dictzip.Reader
 }
 
-// ReadAt implements io.ReaderAt.ReadAt
+// ReadAt implements io.ReaderAt.ReadAt.
 func (r *dictReader) ReadAt(p []byte, off int64) (int, error) {
 	if r.dz != nil {
 		//nolint:wrapcheck // error wrapping is unnecessary.
@@ -84,7 +84,7 @@ func (r *dictReader) ReadAt(p []byte, off int64) (int, error) {
 	return r.f.ReadAt(p, off)
 }
 
-// Close implements io.Closer.Close
+// Close implements io.Closer.Close.
 func (r *dictReader) Close() error {
 	//nolint:wrapcheck // error wrapping is unnecessary.
 	return r.f.Close()

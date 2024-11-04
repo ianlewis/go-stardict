@@ -37,9 +37,7 @@ type Scanner struct {
 // Close method.
 func NewScanner(r io.ReadCloser, options *Options) (*Scanner, error) {
 	if options == nil {
-		options = &Options{
-			OffsetBits: 32,
-		}
+		options = DefaultOptions
 	}
 
 	if options.OffsetBits != 32 && options.OffsetBits != 64 {

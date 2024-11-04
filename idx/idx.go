@@ -54,6 +54,11 @@ type Options struct {
 	OffsetBits int
 }
 
+// DefaultOptions is the default options for an Idx.
+var DefaultOptions = &Options{
+	OffsetBits: 32,
+}
+
 // Idx is a very basic implementation of an in memory search index.
 // Implementers of dictionaries apps or tools may wish to consider using
 // Scanner to read the .idx file and generate their own more robust search
@@ -66,9 +71,7 @@ type Idx struct {
 // New returns a new in-memory index.
 func New(r io.ReadCloser, options *Options) (*Idx, error) {
 	if options == nil {
-		options = &Options{
-			OffsetBits: 32,
-		}
+		options = DefaultOptions
 	}
 
 	idx := &Idx{
@@ -155,9 +158,9 @@ func NewFromIfoPath(ifoPath string, options *Options) (*Idx, error) {
 	}
 	r = f
 
-	idxExt := filepath.Ext(f.Name())
+	idxExt := strings.ToLower(filepath.Ext(f.Name()))
 	//nolint:gocritic // strings.EqualFold should not be used here.
-	if strings.ToLower(idxExt) == ".gz" {
+	if idxExt == ".gz" || idxExt == ".dz" {
 		r, err = gzip.NewReader(r)
 		if err != nil {
 			return nil, fmt.Errorf("creating .ifo gzip reader: %w", err)
