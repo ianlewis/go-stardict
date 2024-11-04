@@ -101,11 +101,9 @@ func printEntries(entries []*stardict.Entry) {
 				text += string(d.Data) + "\n"
 			case dict.HTMLType:
 				text += html2text.HTML2Text(string(d.Data)) + "\n"
-			case dict.PangoTextType, dict.XDXFType:
-				// TODO(#22): Support XDXF format.
-			case dict.PowerWordType, dict.WordNetType, dict.ResourceFileListType, dict.WavType, dict.PictureType,
-				dict.ExperimentalType:
-				// TODO: Support other formats.
+			case dict.PangoTextType, dict.XDXFType, dict.PowerWordType, dict.WordNetType, dict.ResourceFileListType,
+				dict.WavType, dict.PictureType, dict.ExperimentalType:
+				// TODO(#22): Support other formats.
 			default:
 			}
 		}
