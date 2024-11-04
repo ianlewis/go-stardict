@@ -192,12 +192,15 @@ func NewFromIfoPath(ifoPath string, options *Options) (*Dict, error) {
 	var err error
 	for _, ext := range dictExts {
 		f, err = os.Open(baseName + ext)
-		// TODO: check for os.ErrNotExist
 		if err == nil {
 			break
 		}
+		if !errors.Is(err, os.ErrNotExist) {
+			return nil, fmt.Errorf("opening .dict file: %w", err)
+		}
 	}
 
+	// Catch the case when no .dict file was found.
 	if err != nil {
 		return nil, fmt.Errorf("opening .dict file: %w", err)
 	}

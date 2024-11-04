@@ -16,6 +16,7 @@ package idx
 
 import (
 	"compress/gzip"
+	"errors"
 	"fmt"
 	"io"
 	"os"
@@ -128,12 +129,16 @@ func openIdxFile(ifoPath string) (*os.File, error) {
 	var err error
 	for _, ext := range idxExts {
 		f, err = os.Open(baseName + ext)
-		// TODO: check for os.ErrNotExist
 		if err == nil {
 			break
 		}
+		if !errors.Is(err, os.ErrNotExist) {
+			return nil, fmt.Errorf("opening .idx file: %w", err)
+		}
+
 	}
 
+	// Catch the case when no .idx file was found.
 	if err != nil {
 		return nil, fmt.Errorf("opening .idx file: %w", err)
 	}
