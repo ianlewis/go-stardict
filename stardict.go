@@ -169,9 +169,11 @@ func Open(path string) (*Stardict, error) {
 	s.description = strings.ReplaceAll(s.ifo.Value("description"), "<br>", "\n")
 	s.website = s.ifo.Value("website")
 
-	// TODO: support the .syn file.
-	// TODO: support the .tdx file.
-	// TODO: support resource storage
+	// TODO(#2): support the .syn file.
+	// TODO(#3): support the .tdx file.
+	// TODO(#4): support resource storage
+	// TODO(#6): support collation files.
+	// TODO(#7): support offset cache files.
 
 	return s, nil
 }
