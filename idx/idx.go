@@ -138,7 +138,6 @@ func openIdxFile(ifoPath string) (*os.File, error) {
 		if !errors.Is(err, os.ErrNotExist) {
 			return nil, fmt.Errorf("opening .idx file: %w", err)
 		}
-
 	}
 
 	// Catch the case when no .idx file was found.
@@ -159,7 +158,6 @@ func NewFromIfoPath(ifoPath string, options *Options) (*Idx, error) {
 	r = f
 
 	idxExt := strings.ToLower(filepath.Ext(f.Name()))
-	//nolint:gocritic // strings.EqualFold should not be used here.
 	if idxExt == ".gz" || idxExt == ".dz" {
 		r, err = gzip.NewReader(r)
 		if err != nil {
