@@ -112,7 +112,18 @@ func New(r io.ReadCloser, options *Options) (*Idx, error) {
 func openIdxFile(ifoPath string) (*os.File, error) {
 	baseName := strings.TrimSuffix(ifoPath, filepath.Ext(ifoPath))
 
-	idxExts := []string{".idx.gz", ".idx", ".IDX", ".IDX.gz", ".IDX.GZ"}
+	idxExts := []string{
+		".idx",
+		".idx.gz",
+		".idx.GZ",
+		".idx.dz",
+		".idx.DZ",
+		".IDX",
+		".IDX.gz",
+		".IDX.GZ",
+		".IDX.dz",
+		".IDX.DZ",
+	}
 	var f *os.File
 	var err error
 	for _, ext := range idxExts {

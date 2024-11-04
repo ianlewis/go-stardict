@@ -180,7 +180,14 @@ func New(r ReaderAtCloser, options *Options) (*Dict, error) {
 func NewFromIfoPath(ifoPath string, options *Options) (*Dict, error) {
 	baseName := strings.TrimSuffix(ifoPath, filepath.Ext(ifoPath))
 
-	dictExts := []string{".dict.dz", ".dict", ".DICT", ".DICT.dz", ".DICT.DZ"}
+	dictExts := []string{
+		".dict",
+		".dict.dz",
+		".dict.DZ",
+		".DICT",
+		".DICT.dz",
+		".DICT.DZ",
+	}
 	var f *os.File
 	var err error
 	for _, ext := range dictExts {
