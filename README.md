@@ -51,6 +51,11 @@ for _, d := range dictionaries {
 }
 ```
 
+## Related projects
+
+- [ilius/go-stardict](github.com/ilius/go-stardict)
+- [dyatlov/gostardict](https://github.com/dyatlov/gostardict)
+
 ## References
 
 - [Format for StarDict dictionary files](https://github.com/huzheng001/stardict-3/blob/master/dict/doc/StarDictFileFormat)
