@@ -26,8 +26,8 @@ import (
 	"path/filepath"
 	"strings"
 
+	"github.com/ianlewis/go-dictzip"
 	"github.com/k3a/html2text"
-	"github.com/pebbe/dictzip"
 
 	"github.com/ianlewis/go-stardict/idx"
 )
