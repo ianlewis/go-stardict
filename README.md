@@ -15,17 +15,17 @@ versions and compatibility.
 
 ## Features
 
-- \[x] Reading dictionary metadata.
-- \[x] Reading & searching the dictionary index.
+- \[x] Reading dictionary metadata (.ifo files).
+- \[x] Reading & searching the dictionary index (.idx file).
 - \[x] Reading full dictionary articles.
 - \[x] Efficient access for large files.
 - \[x] Dictzip support.
-- \[x] Support for concurrent access.
-- \[ ] Synonym support (.syn file) (#2).
-- \[ ] Support for tree dictionaries (.tdx file) (#3).
-- \[ ] Support for Resource Storage (res/ directory) (#4).
-- \[ ] Glob/Wildcard search support (#21).
-- \[ ] Capitalization, diacritic, punctuation, and whitespace folding (#19, #25).
+- \[ ] Support for concurrent access ([#1](https://github.com/ianlewis/go-stardict/issues/1))
+- \[ ] Synonym support (.syn file) ([#2](https://github.com/ianlewis/go-stardict/issues/2)).
+- \[ ] Support for tree dictionaries (.tdx file) ([#3](https://github.com/ianlewis/go-stardict/issues/3)).
+- \[ ] Support for Resource Storage (res/ directory) ([#4](https://github.com/ianlewis/go-stardict/issues/4)).
+- \[ ] Glob/Wildcard search support ([#21](https://github.com/ianlewis/go-stardict/issues/21)).
+- \[ ] Capitalization, diacritic, punctuation, and whitespace folding ([#19](https://github.com/ianlewis/go-stardict/issues/19), [#25](https://github.com/ianlewis/go-stardict/issues/25)).
 
 ## Installation
 
@@ -34,6 +34,8 @@ To install this package run
 `go get github.com/ianlewis/go-stardict`
 
 ## Examples
+
+### Searching a Dictionary
 
 You can search a stardict dictionary directly and list the entries.
 
@@ -53,7 +55,7 @@ for _, d := range dictionaries {
 
 ## Related projects
 
-- [ilius/go-stardict](github.com/ilius/go-stardict)
+- [ilius/go-stardict](https://github.com/ilius/go-stardict)
 - [dyatlov/gostardict](https://github.com/dyatlov/gostardict)
 
 ## References
