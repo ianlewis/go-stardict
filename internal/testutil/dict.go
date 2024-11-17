@@ -15,20 +15,20 @@
 package testutil
 
 import (
-	"bytes"
 	"encoding/binary"
-	"fmt"
+	"io"
 	"math"
 	"os"
 	"testing"
 
-	"github.com/pebbe/dictzip"
+	"github.com/ianlewis/go-dictzip"
 
 	"github.com/ianlewis/go-stardict/dict"
 )
 
 type MakeDictOptions struct {
-	// Ext is the .dict file's extension (e.g. .dict).
+	// Ext is an option file extension for the dict file. Defaluts to
+	// '.dict.dz' if DictZip is true. Otherwise '.dict'.
 	Ext string
 
 	// DictZip indicates that the dict file should be compressed with DictZip.
@@ -38,11 +38,33 @@ type MakeDictOptions struct {
 	SameTypeSequence []dict.DataType
 }
 
-// MakeTempDict creates a temporary .dict file and returns the path to the file.
-func MakeTempDict(t *testing.T, words []*dict.Word, opts *MakeDictOptions) string {
-	t.Helper()
+func (o *MakeDictOptions) GetSameTypeSequence() []dict.DataType {
+	if o == nil {
+		return nil
+	}
+	return o.SameTypeSequence
+}
 
-	f, err := os.CreateTemp("", "stardict.*"+opts.Ext)
+func (o *MakeDictOptions) GetExt() string {
+	if o != nil {
+		if o.Ext != "" {
+			return o.Ext
+		}
+		if o.DictZip {
+			return ".dict.dz"
+		}
+	}
+	return ".dict"
+}
+
+// MakeTempDict creates a temporary .dict file and returns the file.
+func MakeTempDict(t *testing.T, words []*dict.Word, opts *MakeDictOptions) *os.File {
+	t.Helper()
+	if opts == nil {
+		opts = &MakeDictOptions{}
+	}
+
+	f, err := os.CreateTemp("", "stardict.*"+opts.GetExt())
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -50,37 +72,39 @@ func MakeTempDict(t *testing.T, words []*dict.Word, opts *MakeDictOptions) strin
 	d := MakeDict(t, words, opts.SameTypeSequence)
 
 	if opts.DictZip {
-		// Just get the file name.
-		path := f.Name()
-		f.Close()
-
-		fmt.Println(path)
-		err = dictzip.Write(bytes.NewReader(d), path, 9)
+		z, err := dictzip.NewWriter(f)
 		if err != nil {
 			t.Fatal(err)
 		}
+		defer z.Close()
 
-		return path
+		_, err = z.Write(d)
+		if err != nil {
+			t.Fatal(err)
+		}
+	} else {
+		_, err = f.Write(d)
+		if err != nil {
+			t.Fatal(err)
+		}
 	}
 
-	defer f.Close()
-
-	_, err = f.Write(d)
+	_, err = f.Seek(0, io.SeekStart)
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	return f.Name()
+	return f
 }
 
 // MakeDict creates a test .dict file.
-func MakeDict(t *testing.T, words []*dict.Word, sametypesequence []dict.DataType) []byte {
+func MakeDict(t *testing.T, words []*dict.Word, sameTypeSequence []dict.DataType) []byte {
 	t.Helper()
 
 	b := []byte{}
 	for _, w := range words {
 		for i, d := range w.Data {
-			if len(sametypesequence) == 0 {
+			if len(sameTypeSequence) == 0 {
 				b = append(b, byte(d.Type))
 				if 'a' <= d.Type && d.Type <= 'z' {
 					// Data is a string like sequence.
