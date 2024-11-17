@@ -162,12 +162,7 @@ yamllint: ## Runs the yamllint linter.
 
 .PHONY: golangci-lint
 golangci-lint: ## Runs the golangci-lint linter.
-	@set -e;\
-		extraargs=""; \
-		if [ "$(OUTPUT_FORMAT)" == "github" ]; then \
-			extraargs="--out-format github-actions"; \
-		fi; \
-		golangci-lint run -c .golangci.yml ./... $$extraargs
+	@golangci-lint run -c .golangci.yml ./...
 
 ## Maintenance
 #####################################################################
