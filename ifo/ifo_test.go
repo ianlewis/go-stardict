@@ -51,6 +51,8 @@ version=1.0.0`,
 	}
 
 	for _, test := range tests {
+		test := test
+
 		t.Run(test.name, func(t *testing.T) {
 			t.Parallel()
 

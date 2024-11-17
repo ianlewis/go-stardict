@@ -31,7 +31,9 @@ type testDict struct {
 }
 
 // writeDict writes out a test dictionary set of files.
-func writeDict(d testDict) string {
+func writeDict(t *testing.T, d testDict) string {
+	t.Helper()
+
 	path, err := os.MkdirTemp("", "stardict")
 	if err != nil {
 		panic(err)
@@ -43,7 +45,7 @@ func writeDict(d testDict) string {
 	if err := os.WriteFile(filepath.Join(path, "dictionary.idx"), testutil.MakeIndex(d.idx, 32), 0o600); err != nil {
 		panic(err)
 	}
-	if err := os.WriteFile(filepath.Join(path, "dictionary.dict"), testutil.MakeDict(d.dict, nil), 0o600); err != nil {
+	if err := os.WriteFile(filepath.Join(path, "dictionary.dict"), testutil.MakeDict(t, d.dict, nil), 0o600); err != nil {
 		panic(err)
 	}
 
@@ -90,11 +92,13 @@ idxfilesize=6`,
 	}
 
 	for _, test := range tests {
+		test := test
+
 		t.Run(test.name, func(t *testing.T) {
 			t.Parallel()
 
 			for _, td := range test.dicts {
-				path := writeDict(td)
+				path := writeDict(t, td)
 				defer os.RemoveAll(path)
 
 				s, err := Open(filepath.Join(path, "dictionary.ifo"))

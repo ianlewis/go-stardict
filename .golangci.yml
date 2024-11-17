@@ -36,13 +36,13 @@ linters:
   enable:
     - asciicheck
     - contextcheck
-    - copyloopvar
     - depguard
     - dogsled
     - err113
     - errcheck
     - errorlint
     - exhaustive
+    - exportloopref
     - gci
     - gochecknoinits
     - gocognit
@@ -94,8 +94,8 @@ linters-settings:
 
           # Dependencies.
           - "github.com/google/subcommands"
+          - "github.com/ianlewis/go-dictzip"
           - "github.com/k3a/html2text"
-          - "github.com/pebbe/dictzip"
           - "github.com/rodaine/table"
         deny:
           - pkg: "github.com/ianlewis/go-stardict/internal/testutils"
@@ -117,8 +117,8 @@ linters-settings:
           # Dependencies.
           - "github.com/google/go-cmp/cmp"
           - "github.com/google/subcommands"
+          - "github.com/ianlewis/go-dictzip"
           - "github.com/k3a/html2text"
-          - "github.com/pebbe/dictzip"
           - "github.com/rodaine/table"
         deny:
           - pkg: "reflect"

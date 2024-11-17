@@ -21,7 +21,7 @@ import (
 	"io"
 	"os"
 	"path/filepath"
-	"slices"
+	"sort"
 	"strings"
 	"unicode"
 
@@ -106,8 +106,8 @@ func New(r io.ReadCloser, options *Options) (*Idx, error) {
 	}
 
 	// We need to re-sort based on the folded word.
-	slices.SortFunc(idx.words, func(a, b *foldedWord) int {
-		return strings.Compare(a.folded, b.folded)
+	sort.Slice(idx.words, func(i, j int) bool {
+		return idx.words[i].folded < idx.words[j].folded
 	})
 
 	return idx, nil

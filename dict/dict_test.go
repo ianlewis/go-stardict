@@ -15,9 +15,7 @@
 package dict_test
 
 import (
-	"io"
 	"os"
-	"path/filepath"
 	"strings"
 	"testing"
 
@@ -73,6 +71,8 @@ func TestData_String(t *testing.T) {
 	}
 
 	for _, test := range tests {
+		test := test
+
 		t.Run(test.name, func(t *testing.T) {
 			t.Parallel()
 
@@ -92,7 +92,7 @@ func TestDict_Word(t *testing.T) {
 		dict             []*dict.Word
 		index            *idx.Word
 		expected         *dict.Word
-		sametypesequence []dict.DataType
+		sameTypeSequence []dict.DataType
 	}{
 		{
 			name: "utf",
@@ -122,7 +122,7 @@ func TestDict_Word(t *testing.T) {
 		},
 		{
 			name: "utf sametype",
-			sametypesequence: []dict.DataType{
+			sameTypeSequence: []dict.DataType{
 				dict.UTFTextType,
 			},
 			dict: []*dict.Word{
@@ -177,7 +177,7 @@ func TestDict_Word(t *testing.T) {
 		},
 		{
 			name: "file sametype",
-			sametypesequence: []dict.DataType{
+			sameTypeSequence: []dict.DataType{
 				dict.WavType,
 			},
 			dict: []*dict.Word{
@@ -207,26 +207,19 @@ func TestDict_Word(t *testing.T) {
 	}
 
 	for _, test := range tests {
+		test := test
+
 		t.Run(test.name, func(t *testing.T) {
 			t.Parallel()
 
-			f, err := os.CreateTemp("", "stardict")
-			if err != nil {
-				t.Fatal(err)
-			}
+			f := testutil.MakeTempDict(t, test.dict, &testutil.MakeDictOptions{
+				SameTypeSequence: test.sameTypeSequence,
+			})
+			defer f.Close()
 			defer os.Remove(f.Name())
 
-			_, err = f.Write(testutil.MakeDict(test.dict, test.sametypesequence))
-			if err != nil {
-				t.Fatal(err)
-			}
-			_, err = f.Seek(0, io.SeekStart)
-			if err != nil {
-				t.Fatal(err)
-			}
-
 			d, err := dict.New(f, &dict.Options{
-				SameTypeSequence: test.sametypesequence,
+				SameTypeSequence: test.sameTypeSequence,
 			})
 			if err != nil {
 				t.Fatal(err)
@@ -250,16 +243,14 @@ func TestDict_NewFromIfoPath(t *testing.T) {
 	t.Parallel()
 
 	tests := []struct {
-		name             string
-		extension        string
-		dict             []*dict.Word
-		index            *idx.Word
-		expected         *dict.Word
-		sametypesequence []dict.DataType
+		name     string
+		options  *testutil.MakeDictOptions
+		dict     []*dict.Word
+		index    *idx.Word
+		expected *dict.Word
 	}{
 		{
-			name:      "utf",
-			extension: ".dict",
+			name: "utf",
 			dict: []*dict.Word{
 				{
 					Data: []*dict.Data{
@@ -285,10 +276,12 @@ func TestDict_NewFromIfoPath(t *testing.T) {
 			},
 		},
 		{
-			name:      "utf sametype",
-			extension: ".DICT",
-			sametypesequence: []dict.DataType{
-				dict.UTFTextType,
+			name: "utf sametype",
+			options: &testutil.MakeDictOptions{
+				Ext: ".DICT",
+				SameTypeSequence: []dict.DataType{
+					dict.UTFTextType,
+				},
 			},
 			dict: []*dict.Word{
 				{
@@ -315,8 +308,7 @@ func TestDict_NewFromIfoPath(t *testing.T) {
 			},
 		},
 		{
-			name:      "file type",
-			extension: ".dict",
+			name: "file type",
 			dict: []*dict.Word{
 				{
 					Data: []*dict.Data{
@@ -342,10 +334,11 @@ func TestDict_NewFromIfoPath(t *testing.T) {
 			},
 		},
 		{
-			name:      "file sametype",
-			extension: ".dict",
-			sametypesequence: []dict.DataType{
-				dict.WavType,
+			name: "file sametype",
+			options: &testutil.MakeDictOptions{
+				SameTypeSequence: []dict.DataType{
+					dict.WavType,
+				},
 			},
 			dict: []*dict.Word{
 				{
@@ -371,30 +364,50 @@ func TestDict_NewFromIfoPath(t *testing.T) {
 				},
 			},
 		},
+		{
+			name: "dictzip",
+			options: &testutil.MakeDictOptions{
+				DictZip: true,
+			},
+			dict: []*dict.Word{
+				{
+					Data: []*dict.Data{
+						{
+							Type: dict.UTFTextType,
+							Data: []byte("hoge"),
+						},
+					},
+				},
+			},
+			index: &idx.Word{
+				Word:   "hoge",
+				Offset: uint64(0),
+				Size:   uint32(6),
+			},
+			expected: &dict.Word{
+				Data: []*dict.Data{
+					{
+						Type: dict.UTFTextType,
+						Data: []byte("hoge"),
+					},
+				},
+			},
+		},
 	}
 
 	for _, test := range tests {
+		test := test
+
 		t.Run(test.name, func(t *testing.T) {
 			t.Parallel()
 
-			f, err := os.CreateTemp("", "stardict.*"+test.extension)
-			if err != nil {
-				t.Fatal(err)
-			}
+			f := testutil.MakeTempDict(t, test.dict, test.options)
+			defer f.Close()
 			defer os.Remove(f.Name())
+			ifoPath := strings.TrimSuffix(f.Name(), test.options.GetExt()) + ".ifo"
 
-			_, err = f.Write(testutil.MakeDict(test.dict, test.sametypesequence))
-			if err != nil {
-				t.Fatal(err)
-			}
-			_, err = f.Seek(0, io.SeekStart)
-			if err != nil {
-				t.Fatal(err)
-			}
-
-			ifoPath := strings.TrimSuffix(f.Name(), filepath.Ext(f.Name())) + ".ifo"
 			d, err := dict.NewFromIfoPath(ifoPath, &dict.Options{
-				SameTypeSequence: test.sametypesequence,
+				SameTypeSequence: test.options.GetSameTypeSequence(),
 			})
 			if err != nil {
 				t.Fatal(err)
