@@ -4,7 +4,6 @@ Please see [ianlewis/ianlewis/CONTRIBUTING.md](https://github.com/ianlewis/ianle
 
 ## Additional requirements
 
-This project requires commits to adhere to [Conventional Commits] format and PRs
-should be a single commit.
+This project requires commits to adhere to [Conventional Commits] format.
 
 [Conventional Commits]: https://www.conventionalcommits.org/en/v1.0.0/
