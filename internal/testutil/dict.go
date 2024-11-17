@@ -72,7 +72,8 @@ func MakeTempDict(t *testing.T, words []*dict.Word, opts *MakeDictOptions) *os.F
 	d := MakeDict(t, words, opts.SameTypeSequence)
 
 	if opts.DictZip {
-		z, err := dictzip.NewWriter(f)
+		var z *dictzip.Writer
+		z, err = dictzip.NewWriter(f)
 		if err != nil {
 			t.Fatal(err)
 		}
