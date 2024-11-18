@@ -60,13 +60,13 @@ type whitespaceFolder struct {
 	wsSpan bool
 }
 
-func (w *whitespaceFolder) Transform(dst, src []byte, atEOF bool) (nDst, nSrc int, err error) {
-	// for nDst < len(dst) && nSrc < len(src) {
+// Transform implements [transform.Transformer.Transform].
+func (w *whitespaceFolder) Transform(dst, src []byte, atEOF bool) (int, int, error) {
+	var nSrc, nDst int
 	for nSrc < len(src) {
 		c, size := utf8.DecodeRune(src[nSrc:])
 		if c == utf8.RuneError && !atEOF {
-			err = transform.ErrShortSrc
-			return
+			return nDst, nSrc, transform.ErrShortSrc
 		}
 
 		isSpace := unicode.IsSpace(c)
@@ -76,38 +76,38 @@ func (w *whitespaceFolder) Transform(dst, src []byte, atEOF bool) (nDst, nSrc in
 				// Ignore leading whitespace.
 				continue
 			}
+			// We are in an internal whitespace span.
 			w.wsSpan = true
 			continue
-		} else {
-			if w.wsSpan {
-				// Emit a single space if we are coming out of a whitespace span.
-				// NOTE: trailing whitespace is never emitted by design.
-				// NOTE: ' ' has length one.
-				spc := ' '
-				if nDst+utf8.RuneLen(spc) > len(dst) {
-					err = transform.ErrShortDst
-					return
-				}
-				nDst += utf8.EncodeRune(dst[nDst:], spc)
-				w.wsSpan = false
-			}
-			w.notStart = true
-			nSrc += size
 		}
+
+		if w.wsSpan {
+			// Emit a single space if we are coming out of a whitespace span.
+			// NOTE: trailing whitespace is never emitted by design.
+			spc := ' '
+			if nDst+utf8.RuneLen(spc) > len(dst) {
+				return nDst, nSrc, transform.ErrShortDst
+			}
+			nDst += utf8.EncodeRune(dst[nDst:], spc)
+			// We are no longer in an internal whitespace span.
+			w.wsSpan = false
+		}
+		w.notStart = true
+		nSrc += size
 
 		// Emit the character.
 		// NOTE: we cannot use size here because c could be utf8.RuneError in
 		// which case size would be 1 but the length of utf8.RuneError is 3.
 		if nDst+utf8.RuneLen(c) > len(dst) {
-			err = transform.ErrShortDst
-			return
+			return nDst, nSrc, transform.ErrShortDst
 		}
 		nDst += utf8.EncodeRune(dst[nDst:], c)
 	}
 
-	return
+	return nDst, nSrc, nil
 }
 
+// Reset implements [transform.Transformer.Reset].
 func (w *whitespaceFolder) Reset() {
 	*w = whitespaceFolder{}
 }
