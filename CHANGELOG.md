@@ -7,9 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## Unreleased
 
-### Changed
+### Added
 
-- Now supporting Go 1.20+
+- The index now supports whitespace and punctuation folding ([#25](https://github.com/ianlewis/go-stardict/issues/25))
+- The library now supports Go 1.20+
 
 ## [0.1.0] - 2024-11-04
 
