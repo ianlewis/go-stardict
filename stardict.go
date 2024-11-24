@@ -26,6 +26,7 @@ import (
 	"github.com/ianlewis/go-stardict/dict"
 	"github.com/ianlewis/go-stardict/idx"
 	"github.com/ianlewis/go-stardict/ifo"
+	"github.com/ianlewis/go-stardict/syn"
 )
 
 const ifoMagic = "StarDict's dict ifo file"
@@ -34,6 +35,7 @@ const ifoMagic = "StarDict's dict ifo file"
 type Stardict struct {
 	ifo  *ifo.Ifo
 	idx  *idx.Idx
+	syn  *syn.Syn
 	dict *dict.Dict
 
 	dictFile *os.File
@@ -210,6 +212,11 @@ func (s *Stardict) WordCount() int64 {
 	return s.wordcount
 }
 
+// SynWordCount returns the wordcount in the synonym index.
+func (s *Stardict) SynWordCount() int64 {
+	return s.synwordcount
+}
+
 // Version returns the dictionary format version.
 func (s *Stardict) Version() string {
 	return s.version
@@ -218,6 +225,10 @@ func (s *Stardict) Version() string {
 // Search performs a simple full text search of the dictionary for the
 // given query and returns dictionary entries.
 func (s *Stardict) Search(query string) ([]*Entry, error) {
+	synonyms, err := s.Syn()
+	if err != nil {
+		return nil, err
+	}
 	index, err := s.Index()
 	if err != nil {
 		return nil, err
@@ -228,9 +239,22 @@ func (s *Stardict) Search(query string) ([]*Entry, error) {
 	}
 
 	var entries []*Entry
+	synResults, err := synonyms.Search(query)
+	if err != nil {
+		return nil, fmt.Errorf("searching synonyms: %w", err)
+	}
+
 	idxResults, err := index.Search(query)
 	if err != nil {
 		return nil, fmt.Errorf("searching index: %w", err)
+	}
+
+	for _, synWord := range synResults {
+		w, err := index.ByIndex(synWord.OriginalWordIndex)
+		if err != nil {
+			return nil, fmt.Errorf("reading index: %w", err)
+		}
+		idxResults = append(idxResults, w)
 	}
 
 	for _, idxWord := range idxResults {
@@ -275,6 +299,22 @@ func (s *Stardict) Index() (*idx.Idx, error) {
 	s.idx = index
 
 	return s.idx, nil
+}
+
+// Syn returns a simple in-memory version of the dictionary's synonym index.
+func (s *Stardict) Syn() (*syn.Syn, error) {
+	if s.syn != nil {
+		return s.syn, nil
+	}
+
+	// Open the .syn file.
+	synIndex, err := syn.NewFromIfoPath(s.ifoPath)
+	if err != nil {
+		return nil, fmt.Errorf("opening synonym index: %w", err)
+	}
+	s.syn = synIndex
+
+	return s.syn, nil
 }
 
 // Dict returns the dictionary's dict.
