@@ -24,13 +24,16 @@ import (
 	"sort"
 	"strings"
 	"unicode"
-	"unicode/utf8"
 
 	"golang.org/x/text/cases"
 	"golang.org/x/text/runes"
 	"golang.org/x/text/transform"
 	"golang.org/x/text/unicode/norm"
+
+	"github.com/ianlewis/go-stardict/internal/folding"
 )
+
+var errIndex = errors.New("invalid index")
 
 // Word is an .idx file entry.
 type Word struct {
@@ -49,69 +52,6 @@ type foldedWord struct {
 	word   *Word
 }
 
-// whitespaceFolder will perform whitespace folding on the input. It removes
-// spaces from the beginning and end of the input and replaces all internal
-// whitespace spans with a single ASCII space rune.
-type whitespaceFolder struct {
-	// notStart is true after encounting the first non-whitespace rune.
-	notStart bool
-
-	// wsSpan is true if the transformer is currently handling a whitespace span.
-	wsSpan bool
-}
-
-// Transform implements [transform.Transformer.Transform].
-func (w *whitespaceFolder) Transform(dst, src []byte, atEOF bool) (int, int, error) {
-	var nSrc, nDst int
-	for nSrc < len(src) {
-		c, size := utf8.DecodeRune(src[nSrc:])
-		if c == utf8.RuneError && !atEOF {
-			return nDst, nSrc, transform.ErrShortSrc
-		}
-
-		isSpace := unicode.IsSpace(c)
-		if isSpace {
-			nSrc += size
-			if !w.notStart {
-				// Ignore leading whitespace.
-				continue
-			}
-			// We are in an internal whitespace span.
-			w.wsSpan = true
-			continue
-		}
-
-		if w.wsSpan {
-			// Emit a single space if we are coming out of a whitespace span.
-			// NOTE: trailing whitespace is never emitted by design.
-			spc := ' '
-			if nDst+utf8.RuneLen(spc) > len(dst) {
-				return nDst, nSrc, transform.ErrShortDst
-			}
-			nDst += utf8.EncodeRune(dst[nDst:], spc)
-			// We are no longer in an internal whitespace span.
-			w.wsSpan = false
-		}
-		w.notStart = true
-		nSrc += size
-
-		// Emit the character.
-		// NOTE: we cannot use size here because c could be utf8.RuneError in
-		// which case size would be 1 but the length of utf8.RuneError is 3.
-		if nDst+utf8.RuneLen(c) > len(dst) {
-			return nDst, nSrc, transform.ErrShortDst
-		}
-		nDst += utf8.EncodeRune(dst[nDst:], c)
-	}
-
-	return nDst, nSrc, nil
-}
-
-// Reset implements [transform.Transformer.Reset].
-func (w *whitespaceFolder) Reset() {
-	*w = whitespaceFolder{}
-}
-
 // Options are options for the idx data.
 type Options struct {
 	// OffsetBits are the number of bits in the offset fields.
@@ -128,7 +68,13 @@ var DefaultOptions = &Options{
 // Scanner to read the .idx file and generate their own more robust search
 // index.
 type Idx struct {
-	words           []*foldedWord
+	// words is indexed by the original file index.
+	words []*Word
+
+	// folded is sorted by the folded word value.
+	folded []*foldedWord
+
+	// foldTransformer performs folding on text.
 	foldTransformer transform.Transformer
 }
 
@@ -145,7 +91,7 @@ func New(r io.ReadCloser, options *Options) (*Idx, error) {
 			// Perform case folding.
 			cases.Fold(),
 			// Perform whitespace folding.
-			&whitespaceFolder{},
+			&folding.WhitespaceFolder{},
 			// Remove Non-spacing marks ([, ] {, }, etc.).
 			runes.Remove(runes.In(unicode.Mn)),
 			// Remove punctuation.
@@ -169,8 +115,8 @@ func New(r io.ReadCloser, options *Options) (*Idx, error) {
 		if err != nil {
 			return nil, fmt.Errorf("folding word %q: %w", word.Word, err)
 		}
-
-		idx.words = append(idx.words, &foldedWord{
+		idx.words = append(idx.words, word)
+		idx.folded = append(idx.folded, &foldedWord{
 			folded: folded,
 			word:   word,
 		})
@@ -181,8 +127,8 @@ func New(r io.ReadCloser, options *Options) (*Idx, error) {
 	}
 
 	// We need to re-sort based on the folded word.
-	sort.Slice(idx.words, func(i, j int) bool {
-		return idx.words[i].folded < idx.words[j].folded
+	sort.Slice(idx.folded, func(i, j int) bool {
+		return idx.folded[i].folded < idx.folded[j].folded
 	})
 
 	return idx, nil
@@ -243,6 +189,15 @@ func NewFromIfoPath(ifoPath string, options *Options) (*Idx, error) {
 	return New(r, options)
 }
 
+// ByIndex returns the word at the original index in the .idx file.
+func (idx *Idx) ByIndex(i uint32) (*Word, error) {
+	intIndex := int(i)
+	if intIndex >= len(idx.words) {
+		return nil, fmt.Errorf("%w: %d", errIndex, intIndex)
+	}
+	return idx.words[intIndex], nil
+}
+
 // Search performs a query of the index and returns matching words.
 func (idx *Idx) Search(query string) ([]*Word, error) {
 	foldedQuery, _, err := transform.String(idx.foldTransformer, query)
@@ -251,30 +206,30 @@ func (idx *Idx) Search(query string) ([]*Word, error) {
 	}
 
 	start := 0
-	end := len(idx.words) - 1
+	end := len(idx.folded) - 1
 	for start <= end {
 		pivot := (start + end) / 2
 		switch {
-		case idx.words[pivot].folded < foldedQuery:
+		case idx.folded[pivot].folded < foldedQuery:
 			start = pivot + 1
-		case idx.words[pivot].folded > foldedQuery:
+		case idx.folded[pivot].folded > foldedQuery:
 			end = pivot - 1
 		default:
 			// We have found a matching word.
 			// Multiple word entries may have the same value we must find the
 			// first and iterate over the index until we have found all matches.
 			i := pivot
-			for i > 0 && idx.words[i-1].folded == foldedQuery {
+			for i > 0 && idx.folded[i-1].folded == foldedQuery {
 				i--
 			}
 			j := pivot
-			for j+1 < len(idx.words) && idx.words[j+1].folded == foldedQuery {
+			for j+1 < len(idx.folded) && idx.folded[j+1].folded == foldedQuery {
 				j++
 			}
 
 			var result []*Word
 			for ; i < j+1; i++ {
-				result = append(result, idx.words[i].word)
+				result = append(result, idx.folded[i].word)
 			}
 
 			return result, nil

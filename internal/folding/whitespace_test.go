@@ -1,4 +1,5 @@
 // Copyright 2024 Google LLC
+// Copyright 2024 Ian Lewis
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -12,7 +13,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package idx
+package folding
 
 import (
 	"testing"
@@ -22,7 +23,7 @@ import (
 	"golang.org/x/text/transform"
 )
 
-func Test_whitespaceFolder(t *testing.T) {
+func TestWhitespaceFolder(t *testing.T) {
 	t.Parallel()
 
 	tests := []struct {
@@ -149,7 +150,7 @@ func Test_whitespaceFolder(t *testing.T) {
 		t.Run(test.name, func(t *testing.T) {
 			t.Parallel()
 
-			ws := whitespaceFolder{}
+			ws := WhitespaceFolder{}
 			nDst, nSrc, err := ws.Transform(test.dst, test.src, test.atEOF)
 			if diff := cmp.Diff(test.nDst, nDst); diff != "" {
 				t.Fatalf("nDst (-want, +got):\n%s", diff)
