@@ -145,12 +145,166 @@ func TestSearch(t *testing.T) {
 version=3.0.0
 bookname=hoge
 wordcount=0
-idxfilesize=6`,
+idxfilesize=0`,
 			},
 			query: "foo",
 
 			expected: nil,
 			err:      nil,
+		},
+		{
+			name: "index search",
+			dict: &testDict{
+				ifo: `StarDict's dict ifo file
+version=3.0.0
+bookname=hoge
+wordcount=1
+idxfilesize=0`,
+				dict: []*dict.Word{
+					{
+						Data: []*dict.Data{
+							{
+								Type: dict.UTFTextType,
+								Data: []byte{'h', 'o', 'g', 'e'},
+							},
+						},
+					},
+				},
+				idx: []*idx.Word{
+					{
+						Word:   "hoge",
+						Offset: 0,
+						Size:   6,
+					},
+				},
+			},
+			query: "hoge",
+
+			expected: []*Entry{
+				{
+					word: "hoge",
+					data: []*dict.Data{
+						{
+							Type: dict.UTFTextType,
+							Data: []byte{'h', 'o', 'g', 'e'},
+						},
+					},
+				},
+			},
+			err: nil,
+		},
+
+		{
+			name: "syn search",
+			dict: &testDict{
+				ifo: `StarDict's dict ifo file
+version=3.0.0
+bookname=hoge
+wordcount=1
+idxfilesize=0`,
+				dict: []*dict.Word{
+					{
+						Data: []*dict.Data{
+							{
+								Type: dict.UTFTextType,
+								Data: []byte{'h', 'o', 'g', 'e'},
+							},
+						},
+					},
+				},
+				idx: []*idx.Word{
+					{
+						Word:   "hoge",
+						Offset: 0,
+						Size:   6,
+					},
+				},
+				syn: []*syn.Word{
+					{
+						Word:              "foo",
+						OriginalWordIndex: 0,
+					},
+				},
+			},
+			query: "foo",
+
+			expected: []*Entry{
+				{
+					word: "hoge",
+					data: []*dict.Data{
+						{
+							Type: dict.UTFTextType,
+							Data: []byte{'h', 'o', 'g', 'e'},
+						},
+					},
+				},
+			},
+			err: nil,
+		},
+		{
+			name: "combined idx/syn search",
+			dict: &testDict{
+				ifo: `StarDict's dict ifo file
+version=3.0.0
+bookname=hoge
+wordcount=1
+idxfilesize=0`,
+				dict: []*dict.Word{
+					{
+						Data: []*dict.Data{
+							{
+								Type: dict.UTFTextType,
+								Data: []byte("hoge"),
+							},
+							{
+								Type: dict.UTFTextType,
+								Data: []byte("foo"),
+							},
+						},
+					},
+				},
+				idx: []*idx.Word{
+					{
+						Word:   "hoge",
+						Offset: 0,
+						Size:   6,
+					},
+					{
+						Word:   "foo",
+						Offset: 6,
+						Size:   5,
+					},
+				},
+				syn: []*syn.Word{
+					{
+						Word:              "foo",
+						OriginalWordIndex: 0,
+					},
+				},
+			},
+			query: "foo",
+
+			expected: []*Entry{
+				{
+					word: "foo",
+					data: []*dict.Data{
+						{
+							Type: dict.UTFTextType,
+							Data: []byte("foo"),
+						},
+					},
+				},
+				{
+					word: "hoge",
+					data: []*dict.Data{
+						{
+							Type: dict.UTFTextType,
+							Data: []byte("hoge"),
+						},
+					},
+				},
+			},
+			err: nil,
 		},
 	}
 
@@ -172,7 +326,7 @@ idxfilesize=6`,
 			if diff := cmp.Diff(test.err, err); diff != "" {
 				t.Errorf("Search (-want, +got):\n%s", diff)
 			}
-			if diff := cmp.Diff(test.expected, results); diff != "" {
+			if diff := cmp.Diff(test.expected, results, cmp.AllowUnexported(Entry{})); diff != "" {
 				t.Errorf("Search (-want, +got):\n%s", diff)
 			}
 		})
