@@ -19,19 +19,23 @@ import (
 	"path/filepath"
 	"testing"
 
+	"github.com/google/go-cmp/cmp"
+
 	"github.com/ianlewis/go-stardict/dict"
 	"github.com/ianlewis/go-stardict/idx"
 	"github.com/ianlewis/go-stardict/internal/testutil"
+	"github.com/ianlewis/go-stardict/syn"
 )
 
 type testDict struct {
 	ifo  string
 	dict []*dict.Word
 	idx  []*idx.Word
+	syn  []*syn.Word
 }
 
 // writeDict writes out a test dictionary set of files.
-func writeDict(t *testing.T, d testDict) string {
+func writeDict(t *testing.T, d *testDict) string {
 	t.Helper()
 
 	path, err := os.MkdirTemp("", "stardict")
@@ -43,6 +47,9 @@ func writeDict(t *testing.T, d testDict) string {
 		panic(err)
 	}
 	if err := os.WriteFile(filepath.Join(path, "dictionary.idx"), testutil.MakeIndex(d.idx, 32), 0o600); err != nil {
+		panic(err)
+	}
+	if err := os.WriteFile(filepath.Join(path, "dictionary.syn"), testutil.MakeSyn(t, d.syn), 0o600); err != nil {
 		panic(err)
 	}
 	if err := os.WriteFile(filepath.Join(path, "dictionary.dict"), testutil.MakeDict(t, d.dict, nil), 0o600); err != nil {
@@ -58,11 +65,11 @@ func TestOpen(t *testing.T) {
 
 	tests := []struct {
 		name  string
-		dicts []testDict
+		dicts []*testDict
 	}{
 		{
 			name: "basic open",
-			dicts: []testDict{
+			dicts: []*testDict{
 				{
 					ifo: `StarDict's dict ifo file
 version=3.0.0
@@ -120,66 +127,272 @@ idxfilesize=6`,
 	}
 }
 
+func TestSearch(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name  string
+		dict  *testDict
+		query string
+
+		expected []*Entry
+		err      error
+	}{
+		{
+			name: "empty dictionary",
+			dict: &testDict{
+				ifo: `StarDict's dict ifo file
+version=3.0.0
+bookname=hoge
+wordcount=0
+idxfilesize=0`,
+			},
+			query: "foo",
+
+			expected: nil,
+			err:      nil,
+		},
+		{
+			name: "index search",
+			dict: &testDict{
+				ifo: `StarDict's dict ifo file
+version=3.0.0
+bookname=hoge
+wordcount=1
+idxfilesize=0`,
+				dict: []*dict.Word{
+					{
+						Data: []*dict.Data{
+							{
+								Type: dict.UTFTextType,
+								Data: []byte{'h', 'o', 'g', 'e'},
+							},
+						},
+					},
+				},
+				idx: []*idx.Word{
+					{
+						Word:   "hoge",
+						Offset: 0,
+						Size:   6,
+					},
+				},
+			},
+			query: "hoge",
+
+			expected: []*Entry{
+				{
+					word: "hoge",
+					data: []*dict.Data{
+						{
+							Type: dict.UTFTextType,
+							Data: []byte{'h', 'o', 'g', 'e'},
+						},
+					},
+				},
+			},
+			err: nil,
+		},
+
+		{
+			name: "syn search",
+			dict: &testDict{
+				ifo: `StarDict's dict ifo file
+version=3.0.0
+bookname=hoge
+wordcount=1
+idxfilesize=0`,
+				dict: []*dict.Word{
+					{
+						Data: []*dict.Data{
+							{
+								Type: dict.UTFTextType,
+								Data: []byte{'h', 'o', 'g', 'e'},
+							},
+						},
+					},
+				},
+				idx: []*idx.Word{
+					{
+						Word:   "hoge",
+						Offset: 0,
+						Size:   6,
+					},
+				},
+				syn: []*syn.Word{
+					{
+						Word:              "foo",
+						OriginalWordIndex: 0,
+					},
+				},
+			},
+			query: "foo",
+
+			expected: []*Entry{
+				{
+					word: "hoge",
+					data: []*dict.Data{
+						{
+							Type: dict.UTFTextType,
+							Data: []byte{'h', 'o', 'g', 'e'},
+						},
+					},
+				},
+			},
+			err: nil,
+		},
+		{
+			name: "combined idx/syn search",
+			dict: &testDict{
+				ifo: `StarDict's dict ifo file
+version=3.0.0
+bookname=hoge
+wordcount=1
+idxfilesize=0`,
+				dict: []*dict.Word{
+					{
+						Data: []*dict.Data{
+							{
+								Type: dict.UTFTextType,
+								Data: []byte("hoge"),
+							},
+							{
+								Type: dict.UTFTextType,
+								Data: []byte("foo"),
+							},
+						},
+					},
+				},
+				idx: []*idx.Word{
+					{
+						Word:   "hoge",
+						Offset: 0,
+						Size:   6,
+					},
+					{
+						Word:   "foo",
+						Offset: 6,
+						Size:   5,
+					},
+				},
+				syn: []*syn.Word{
+					{
+						Word:              "foo",
+						OriginalWordIndex: 0,
+					},
+				},
+			},
+			query: "foo",
+
+			expected: []*Entry{
+				{
+					word: "foo",
+					data: []*dict.Data{
+						{
+							Type: dict.UTFTextType,
+							Data: []byte("foo"),
+						},
+					},
+				},
+				{
+					word: "hoge",
+					data: []*dict.Data{
+						{
+							Type: dict.UTFTextType,
+							Data: []byte("hoge"),
+						},
+					},
+				},
+			},
+			err: nil,
+		},
+	}
+
+	for _, test := range tests {
+		test := test
+
+		t.Run(test.name, func(t *testing.T) {
+			t.Parallel()
+
+			path := writeDict(t, test.dict)
+			defer os.RemoveAll(path)
+
+			d, err := Open(filepath.Join(path, "dictionary.ifo"))
+			if err != nil {
+				t.Fatalf("Open: %v", err)
+			}
+
+			results, err := d.Search(test.query)
+			if diff := cmp.Diff(test.err, err); diff != "" {
+				t.Errorf("Search (-want, +got):\n%s", diff)
+			}
+			if diff := cmp.Diff(test.expected, results, cmp.AllowUnexported(Entry{})); diff != "" {
+				t.Errorf("Search (-want, +got):\n%s", diff)
+			}
+		})
+	}
+}
+
 // TODO(#1): Restore concurrency test
 // TestConcurrency tests that Stardict can be used concurrently.
 // func TestConcurrency(t *testing.T) {
-// 	td := testDict{
-// 		ifo: `StarDict's dict ifo file
+//	td := testDict{
+//		ifo: `StarDict's dict ifo file
 // version=3.0.0
 // bookname=hoge
 // wordcount=1
 // idxfilesize=6`,
-// 		idx: []*idx.Word{
-// 			{
-// 				Word:   "hoge",
-// 				Offset: 0,
-// 				Size:   6,
-// 			},
-// 		},
-// 		dict: []*dict.Word{
-// 			{
-// 				Data: []*dict.Data{
-// 					{
-// 						Type: dict.UTFTextType,
-// 						Data: []byte{'h', 'o', 'g', 'e'},
-// 					},
-// 				},
-// 			},
-// 		},
-// 	}
+//		idx: []*idx.Word{
+//			{
+//				Word:   "hoge",
+//				Offset: 0,
+//				Size:   6,
+//			},
+//		},
+//		dict: []*dict.Word{
+//			{
+//				Data: []*dict.Data{
+//					{
+//						Type: dict.UTFTextType,
+//						Data: []byte{'h', 'o', 'g', 'e'},
+//					},
+//				},
+//			},
+//		},
+//	}
 
-// 	path, err := writeDict(td)
-// 	if err != nil {
-// 		t.Fatalf("writeDict: %v", err)
-// 	}
-// 	defer os.RemoveAll(path)
+//	path, err := writeDict(td)
+//	if err != nil {
+//		t.Fatalf("writeDict: %v", err)
+//	}
+//	defer os.RemoveAll(path)
 
-// 	s, err := Open(filepath.Join(path, "dictionary.ifo"))
-// 	if err != nil {
-// 		t.Fatalf("Open: %v", err)
-// 	}
+//	s, err := Open(filepath.Join(path, "dictionary.ifo"))
+//	if err != nil {
+//		t.Fatalf("Open: %v", err)
+//	}
 
-// 	var entries []*Entry
-// 	var mu sync.Mutex
-// 	var wg sync.WaitGroup
-// 	for i := 0; i < 1000; i++ {
-// 		wg.Add(1)
-// 		go func() {
-// 			defer wg.Done()
-// 			e, err := s.Search("hoge")
-// 			if err != nil {
-// 				return
-// 			}
-// 			mu.Lock()
-// 			defer mu.Unlock()
-// 			entries = append(entries, e...)
-// 		}()
-// 	}
+//	var entries []*Entry
+//	var mu sync.Mutex
+//	var wg sync.WaitGroup
+//	for i := 0; i < 1000; i++ {
+//		wg.Add(1)
+//		go func() {
+//			defer wg.Done()
+//			e, err := s.Search("hoge")
+//			if err != nil {
+//				return
+//			}
+//			mu.Lock()
+//			defer mu.Unlock()
+//			entries = append(entries, e...)
+//		}()
+//	}
 
-// 	wg.Wait()
+//	wg.Wait()
 
-// 	if want, got := 1000, len(entries); want != got {
-// 		t.Fatalf("Unexpected size: want %v, got: %v", want, got)
-// 	}
+//	if want, got := 1000, len(entries); want != got {
+//		t.Fatalf("Unexpected size: want %v, got: %v", want, got)
+//	}
 
 // }
