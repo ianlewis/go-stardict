@@ -128,6 +128,8 @@ idxfilesize=6`,
 }
 
 func TestSearch(t *testing.T) {
+	t.Parallel()
+
 	tests := []struct {
 		name  string
 		dict  *testDict

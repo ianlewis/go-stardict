@@ -16,8 +16,6 @@ package testutil
 
 import (
 	"encoding/binary"
-	"fmt"
-	"math"
 	"testing"
 
 	"github.com/ianlewis/go-stardict/syn"
@@ -31,18 +29,14 @@ func MakeSyn(t *testing.T, words []*syn.Word) []byte {
 	for _, w := range words {
 		// Allow for zero byte terminator and 4 extra bytes for the word index.
 		bWord := make([]byte, len(w.Word)+5)
-		copy(bWord, []byte(w.Word))
+		copy(bWord, w.Word)
 		i := len(w.Word)
 		// NOTE: byte array entries are already initialized to zero but we set
 		// it anyway for clarity.
 		bWord[i] = 0
 		i++
 
-		if w.OriginalWordIndex > math.MaxUint32 {
-			panic(fmt.Sprintf("index too large: %d", w.OriginalWordIndex))
-		}
-		//nolint:gosec // test code, offset size determined by idxoffsetbits
-		binary.BigEndian.PutUint32(bWord[i:], uint32(w.OriginalWordIndex))
+		binary.BigEndian.PutUint32(bWord[i:], w.OriginalWordIndex)
 		b = append(b, bWord...)
 	}
 	return b

@@ -6,6 +6,7 @@ import (
 	"testing"
 
 	"github.com/google/go-cmp/cmp"
+
 	"github.com/ianlewis/go-stardict/internal/testutil"
 	"github.com/ianlewis/go-stardict/syn"
 )

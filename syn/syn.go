@@ -24,11 +24,12 @@ import (
 	"strings"
 	"unicode"
 
-	"github.com/ianlewis/go-stardict/internal/folding"
 	"golang.org/x/text/cases"
 	"golang.org/x/text/runes"
 	"golang.org/x/text/transform"
 	"golang.org/x/text/unicode/norm"
+
+	"github.com/ianlewis/go-stardict/internal/folding"
 )
 
 // Word is a .syn file entry.
