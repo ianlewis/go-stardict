@@ -1,4 +1,4 @@
-# Copyright 2024 Google LLC
+# Copyright 2024 Ian Lewis
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -67,10 +67,9 @@ jobs:
       - run: |
           [ "${UNIT_TESTS_RESULT}" == "success" ]
 
-  # autogen for license headers
+  # Check license headers
   ###############################
-
-  autogen:
+  license-headers:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
@@ -81,12 +80,35 @@ jobs:
           path: autogen
       - run: |
           echo "${GITHUB_WORKSPACE}/autogen" >> "${GITHUB_PATH}"
-      - run: make autogen
+      - run: |
+          git config user.name "Unknown"
+          make license-headers
       - name: check diff
         run: |
           set -euo pipefail
           if [ "$(GIT_PAGER="cat" git diff --ignore-space-at-eol | wc -l)" -gt "0" ]; then
               echo "Detected license header changes.  See status below:"
+              GIT_PAGER="cat" git diff
+              exit 1
+          fi
+
+  # formatting
+  ###############################
+
+  formatting:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+      - uses: actions/setup-node@1d0ff469b7ec7b3cb9d8673fde0c81c44821de2a # v4.2.0
+        with:
+          node-version-file: "package.json"
+      - run: |
+          make format
+      - name: check diff
+        run: |
+          set -euo pipefail
+          if [ "$(GIT_PAGER="cat" git diff --ignore-space-at-eol | wc -l)" -gt "0" ]; then
+              echo "Detected formatting changes.  See status below:"
               GIT_PAGER="cat" git diff
               exit 1
           fi
@@ -131,7 +153,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
-      - uses: actions/setup-node@39370e3970a6d050c480ffad4ff0ed4d3fdee5af # v4.1.0
+      - uses: actions/setup-node@1d0ff469b7ec7b3cb9d8673fde0c81c44821de2a # v4.2.0
         with:
           node-version-file: "package.json"
       - run: make markdownlint
@@ -140,14 +162,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
-      - run: |
-          set -euo pipefail
-
-          # Install yamllint
-          pip install -r requirements.txt --require-hashes
-
-          # Run yamllint
-          make yamllint
+      - run: make yamllint
 
   golangci-lint:
     runs-on: ubuntu-latest
