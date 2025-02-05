@@ -27,7 +27,6 @@ REPO_NAME = $(shell basename "$$(pwd)")
 # Groups can be added with the following style:
 #
 #	## Group name
-.PHONY: help
 help: ## Shows all targets and help from the Makefile (this message).
 	@echo "$(REPO_NAME) Makefile"
 	@echo "Usage: make [COMMAND]"
@@ -117,7 +116,7 @@ license-headers: ## Update license headers.
 		fi;
 
 .PHONY: format
-format: md-format yaml-format ## Format all files
+format: go-format md-format yaml-format ## Format all files
 
 .PHONY: md-format
 md-format: node_modules/.installed ## Format Markdown files.
@@ -151,6 +150,7 @@ go-format: ## Format Go files (gofumpt).
 ## Linters
 #####################################################################
 
+.PHONY: lint
 lint: golangci-lint yamllint actionlint markdownlint ## Run all linters.
 
 .PHONY: actionlint
