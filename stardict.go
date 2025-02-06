@@ -173,8 +173,8 @@ func Open(path string) (*Stardict, error) {
 
 	// TODO(#3): support the .tdx file.
 	// TODO(#4): support resource storage
-	// TODO(#6): support collation files.
-	// TODO(#7): support offset cache files.
+	// TODO(#7): support collation files.
+	// TODO(#8): support offset cache files.
 
 	return s, nil
 }
