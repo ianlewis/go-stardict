@@ -1,6 +1,8 @@
 module github.com/ianlewis/go-stardict
 
-go 1.20
+go 1.23.6
+
+toolchain go1.24.0
 
 require github.com/google/subcommands v1.2.0
 

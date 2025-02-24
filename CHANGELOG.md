@@ -13,6 +13,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - The synonym index (.syn) file is now supported ([#2](https://github.com/ianlewis/go-stardict/issues/2))
 - The library now supports Go 1.20+
 
+### Changed
+
+- The minimum supported Go version is now 1.23.
+
 ## [0.1.0] - 2024-11-04
 
 - Initial release

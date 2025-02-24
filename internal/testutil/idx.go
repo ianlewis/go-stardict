@@ -35,7 +35,6 @@ func MakeIndex(words []*idx.Word, idxoffsetbits int) []byte {
 			if w.Offset > math.MaxUint32 {
 				panic(fmt.Sprintf("word offset too large %d > %d", w.Offset, idxoffsetbits))
 			}
-			//nolint:gosec // test code, offset size determined by idxoffsetbits
 			binary.BigEndian.PutUint32(b2[:4], uint32(w.Offset))
 			binary.BigEndian.PutUint32(b2[4:8], w.Size)
 		case 64:
