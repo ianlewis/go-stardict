@@ -1,10 +1,10 @@
-// Copyright 2021 Google LLC
+// Copyright 2024 Google LLC
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
 // You may obtain a copy of the License at
 //
-//     http://www.apache.org/licenses/LICENSE-2.0
+//      http://www.apache.org/licenses/LICENSE-2.0
 //
 // Unless required by applicable law or agreed to in writing, software
 // distributed under the License is distributed on an "AS IS" BASIS,
@@ -15,17 +15,27 @@
 package main
 
 import (
-	"os"
+	"fmt"
 
 	"github.com/urfave/cli/v2"
+	"sigs.k8s.io/release-utils/version"
 )
 
-func main() {
-	// NOTE: Errors are generally handled in the app itself but Run could
-	// return errors if command line flags are incorrect etc. In this case neither
-	// Action nor ExitErrHandler are called.
-	app := newStardictApp()
-	if err := app.Run(os.Args); err != nil {
-		cli.OsExiter(ExitCodeUnknownError)
+func printVersion(c *cli.Context) error {
+	versionInfo := version.GetVersionInfo()
+
+	copyrights := ""
+	for _, name := range copyrightNames {
+		copyrights += "Copyright " + name + "\n"
 	}
+
+	_, err := fmt.Fprintf(c.App.Writer, `%s %s
+%s
+
+%s
+`, c.App.Name, versionInfo.GitVersion, copyrights, versionInfo.String())
+	if err != nil {
+		return fmt.Errorf("%w: %w", ErrSdutil, err)
+	}
+	return nil
 }

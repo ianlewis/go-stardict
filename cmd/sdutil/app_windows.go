@@ -1,4 +1,4 @@
-// Copyright 2021 Google LLC
+// Copyright 2025 Ian Lewis
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -12,20 +12,29 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+//go:build windows
+
 package main
 
 import (
 	"os"
-
-	"github.com/urfave/cli/v2"
+	"path/filepath"
 )
 
-func main() {
-	// NOTE: Errors are generally handled in the app itself but Run could
-	// return errors if command line flags are incorrect etc. In this case neither
-	// Action nor ExitErrHandler are called.
-	app := newStardictApp()
-	if err := app.Run(os.Args); err != nil {
-		cli.OsExiter(ExitCodeUnknownError)
+func dictLocations() []string {
+	var loc []string
+
+	if execPath, err := os.Executable(); err == nil {
+		loc = append(loc, filepath.Dir(execPath))
 	}
+
+	if stardictDataDir := os.Getenv("STARDICT_DATA_DIR"); stardictDataDir != "" {
+		loc = append(loc, filepath.Join(stardictDataDir, "dic"))
+	}
+
+	if homeDir, err := os.UserHomeDir(); err == nil && homeDir != "" {
+		loc = append(loc, filepath.Join(homeDir, ".stardict/dic"))
+	}
+
+	return loc
 }
