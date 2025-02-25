@@ -15,67 +15,70 @@
 package main
 
 import (
-	"context"
-	"flag"
+	"errors"
 	"fmt"
+	"io/fs"
 	"os"
 
-	"github.com/google/subcommands"
 	"github.com/rodaine/table"
-
-	"github.com/ianlewis/go-stardict"
+	"github.com/urfave/cli/v2"
 )
 
-type listCommand struct{}
-
-func (*listCommand) Name() string {
-	return "list"
-}
-
-func (*listCommand) Synopsis() string {
-	return "List dictionaries"
-}
-
-func (*listCommand) Usage() string {
-	return `list [DIR]
-List all dictionaries in a directory.`
-}
-
-func (*listCommand) SetFlags(_ *flag.FlagSet) {}
-
-func (*listCommand) Execute(_ context.Context, f *flag.FlagSet, _ ...interface{}) subcommands.ExitStatus {
-	args := f.Args()
-	if len(args) != 1 {
-		fmt.Fprintln(os.Stderr, "unexpected number of arguments")
-		return subcommands.ExitUsageError
-	}
-
-	dicts, errs := stardict.OpenAll(args[0])
-	for _, err := range errs {
-		fmt.Fprintln(os.Stderr, err)
-	}
-	defer func() {
-		for _, d := range dicts {
-			d.Close()
+var listCommand = &cli.Command{
+	Name:            "list",
+	Usage:           "List available dictionaries",
+	HideHelp:        true,
+	HideHelpCommand: true,
+	Flags: []cli.Flag{
+		// Special flags are shown at the end.
+		&cli.BoolFlag{
+			Name:               "help",
+			Usage:              "print this help text and exit",
+			Aliases:            []string{"h"},
+			DisableDefaultText: true,
+		},
+		&cli.BoolFlag{
+			Name:               "version",
+			Usage:              "print version information and exit",
+			Aliases:            []string{"V"},
+			DisableDefaultText: true,
+		},
+	},
+	Action: func(c *cli.Context) error {
+		if c.Bool("help") {
+			check(cli.ShowCommandHelp(c, c.Command.Name))
+			return nil
 		}
-	}()
+		if c.Bool("version") {
+			return printVersion(c)
+		}
 
-	tbl := table.New("Name", "Version", "Author", "Email", "Word Count")
+		dicts, errs := openStardicts(c.StringSlice("data-dir"))
+		for _, err := range errs {
+			// Ignore errors where data dir doesn't exist.
+			if !errors.Is(err, fs.ErrNotExist) {
+				fmt.Fprintf(os.Stderr, "WARNING: %v\n", err)
+			}
+		}
+		defer func() {
+			for _, d := range dicts {
+				d.Close()
+			}
+		}()
 
-	for _, dict := range dicts {
-		tbl.AddRow(
-			dict.Bookname(),
-			dict.Version(),
-			dict.Author(),
-			dict.Email(),
-			dict.WordCount(),
-		)
-	}
-	tbl.Print()
+		tbl := table.New("Name", "Version", "Author", "Email", "Word Count")
 
-	if len(errs) > 0 {
-		return subcommands.ExitFailure
-	}
+		for _, dict := range dicts {
+			tbl.AddRow(
+				dict.Bookname(),
+				dict.Version(),
+				dict.Author(),
+				dict.Email(),
+				dict.WordCount(),
+			)
+		}
+		tbl.Print()
 
-	return subcommands.ExitSuccess
+		return nil
+	},
 }

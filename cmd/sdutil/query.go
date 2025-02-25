@@ -15,81 +15,90 @@
 package main
 
 import (
-	"context"
-	"flag"
+	"errors"
 	"fmt"
+	"io/fs"
 	"os"
 
-	"github.com/google/subcommands"
 	"github.com/rodaine/table"
-
-	"github.com/ianlewis/go-stardict"
+	"github.com/urfave/cli/v2"
 )
 
-type queryCommand struct{}
+var queryCommand = &cli.Command{
+	Name:            "query",
+	Usage:           "Search available dictionaries",
+	ArgsUsage:       "[WORD]...",
+	HideHelp:        true,
+	HideHelpCommand: true,
+	Flags: []cli.Flag{
+		// Special flags are shown at the end.
+		&cli.BoolFlag{
+			Name:               "help",
+			Usage:              "print this help text and exit",
+			Aliases:            []string{"h"},
+			DisableDefaultText: true,
+		},
+		&cli.BoolFlag{
+			Name:               "version",
+			Usage:              "print version information and exit",
+			Aliases:            []string{"V"},
+			DisableDefaultText: true,
+		},
+	},
+	Action: func(c *cli.Context) error {
+		if c.Bool("help") {
+			check(cli.ShowCommandHelp(c, c.Command.Name))
+			return nil
+		}
+		if c.Bool("version") {
+			return printVersion(c)
+		}
 
-func (*queryCommand) Name() string {
-	return "query"
-}
+		args := c.Args().Slice()
 
-func (*queryCommand) Synopsis() string {
-	return "Query dictionaries"
-}
+		query := args[0]
 
-func (*queryCommand) Usage() string {
-	return `query [DIR] [QUERY]
-Query all dictionaries in a directory.`
-}
+		dicts, errs := openStardicts(c.StringSlice("data-dir"))
+		for _, err := range errs {
+			// Ignore errors where data dir doesn't exist.
+			if !errors.Is(err, fs.ErrNotExist) {
+				fmt.Fprintf(os.Stderr, "WARNING: %v\n", err)
+			}
+		}
+		defer func() {
+			for _, d := range dicts {
+				d.Close()
+			}
+		}()
 
-func (*queryCommand) SetFlags(_ *flag.FlagSet) {}
-
-func (c *queryCommand) Execute(_ context.Context, f *flag.FlagSet, _ ...interface{}) subcommands.ExitStatus {
-	args := f.Args()
-
-	path := args[0]
-	query := args[1]
-
-	dicts, errs := stardict.OpenAll(path)
-	for _, err := range errs {
-		fmt.Fprintln(os.Stderr, err)
-	}
-	defer func() {
+		dictResults := 0
 		for _, d := range dicts {
-			d.Close()
-		}
-	}()
+			entries, err := d.Search(query)
+			if err != nil {
+				fmt.Fprintln(os.Stderr, err)
+				continue
+			}
 
-	dictResults := 0
-	for _, d := range dicts {
-		entries, err := d.Search(query)
-		if err != nil {
-			fmt.Fprintln(os.Stderr, err)
-			continue
-		}
+			if len(entries) > 0 {
+				if dictResults > 0 {
+					fmt.Println()
+				}
+				dictResults++
 
-		if len(entries) > 0 {
-			if dictResults > 0 {
+				fmt.Println(d.Bookname())
+				fmt.Println("-------------------------------------------------------------------------------")
+
+				tbl := table.New("Title", "Data").WithHeaderFormatter(func(string, ...interface{}) string { return "" })
+				for _, e := range entries {
+					tbl.AddRow(e.Title(), e.Data().String())
+				}
+
+				tbl.Print()
+
 				fmt.Println()
 			}
-			dictResults++
-
-			fmt.Println(d.Bookname())
-			fmt.Println("-------------------------------------------------------------------------------")
-
-			tbl := table.New("Title", "Data").WithHeaderFormatter(func(string, ...interface{}) string { return "" })
-			for _, e := range entries {
-				tbl.AddRow(e.Title(), e.Data().String())
-			}
-
-			tbl.Print()
-
-			fmt.Println()
 		}
-	}
 
-	if len(errs) > 0 {
-		return subcommands.ExitFailure
-	}
-
-	return subcommands.ExitSuccess
+		return nil
+	},
 }

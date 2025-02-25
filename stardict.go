@@ -224,38 +224,44 @@ func (s *Stardict) Version() string {
 // Search performs a simple full text search of the dictionary for the
 // given query and returns dictionary entries.
 func (s *Stardict) Search(query string) ([]*Entry, error) {
-	synonyms, err := s.Syn()
-	if err != nil {
-		return nil, err
-	}
+	var entries []*Entry
+
+	// Read entries from the index.
 	index, err := s.Index()
 	if err != nil {
 		return nil, err
 	}
-	d, err := s.Dict()
-	if err != nil {
-		return nil, err
-	}
-
-	var entries []*Entry
-	synResults, err := synonyms.Search(query)
-	if err != nil {
-		return nil, fmt.Errorf("searching synonyms: %w", err)
-	}
-
 	idxResults, err := index.Search(query)
 	if err != nil {
 		return nil, fmt.Errorf("searching index: %w", err)
 	}
 
-	for _, synWord := range synResults {
-		w, err := index.ByIndex(synWord.OriginalWordIndex)
-		if err != nil {
-			return nil, fmt.Errorf("reading index: %w", err)
-		}
-		idxResults = append(idxResults, w)
+	// Read synonym entries.
+	synonyms, err := s.Syn()
+	// Ignore if the syn file doesn't exist.
+	if err != nil && !errors.Is(err, fs.ErrNotExist) {
+		return nil, err
 	}
 
+	if err == nil {
+		synResults, synSearchErr := synonyms.Search(query)
+		if synSearchErr != nil {
+			return nil, fmt.Errorf("searching synonyms: %w", synSearchErr)
+		}
+		for _, synWord := range synResults {
+			w, synIndexErr := index.ByIndex(synWord.OriginalWordIndex)
+			if synIndexErr != nil {
+				return nil, fmt.Errorf("reading index: %w", synIndexErr)
+			}
+			idxResults = append(idxResults, w)
+		}
+	}
+
+	// Read the entries from the dict.
+	d, err := s.Dict()
+	if err != nil {
+		return nil, err
+	}
 	for _, idxWord := range idxResults {
 		dictWord, err := d.Word(idxWord)
 		if err != nil {
