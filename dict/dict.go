@@ -253,7 +253,6 @@ func (d *Dict) Word(e *idx.Word) (*Word, error) {
 	}
 	// NOTE: if ReadAt does not read e.Size bytes then an error should be
 	// returned.
-	//nolint:gosec // offset size is bounds checked above.
 	_, err := d.r.ReadAt(b, int64(e.Offset))
 	if err != nil {
 		return nil, fmt.Errorf("reading dictionary: %w", err)

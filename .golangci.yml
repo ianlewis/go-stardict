@@ -36,17 +36,13 @@ linters:
   enable:
     - asciicheck
     - contextcheck
-    # NOTE: copyloopvar is disabled because we support Go 1.20.
-    # - copyloopvar
+    - copyloopvar
     - depguard
     - dogsled
     - err113
     - errcheck
     - errorlint
     - exhaustive
-    # NOTE: exportloopref is deprecated but included because the library
-    #       supports Go 1.20.
-    - exportloopref
     - gci
     - gochecknoinits
     - gocognit
