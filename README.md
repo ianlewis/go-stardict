@@ -22,11 +22,10 @@ versions and compatibility.
 - \[x] Dictzip support.
 - \[x] Capitalization, diacritic, punctuation, and whitespace folding ([#19](https://github.com/ianlewis/go-stardict/issues/19), [#25](https://github.com/ianlewis/go-stardict/issues/25)).
 - \[x] Synonym support (.syn file) ([#2](https://github.com/ianlewis/go-stardict/issues/2)).
-- \[ ] Support for concurrent access ([#1](https://github.com/ianlewis/go-stardict/issues/1))
 - \[ ] Support for tree dictionaries (.tdx file) ([#3](https://github.com/ianlewis/go-stardict/issues/3)).
+- \[ ] Support for Resource Storage (res/ directory) ([#4](https://github.com/ianlewis/go-stardict/issues/4)).
 - \[ ] Support for collation files (.idx.clt, .syn.clt) ([#7](https://github.com/ianlewis/go-stardict/issues/7))
 - \[ ] Support for offset cache files (.idx.oft, .syn.oft) ([#8](https://github.com/ianlewis/go-stardict/issues/8))
-- \[ ] Support for Resource Storage (res/ directory) ([#4](https://github.com/ianlewis/go-stardict/issues/4)).
 - \[ ] Glob/Wildcard search support ([#21](https://github.com/ianlewis/go-stardict/issues/21)).
 
 ## Installation

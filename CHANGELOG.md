@@ -11,7 +11,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - The index now supports whitespace and punctuation folding ([#25](https://github.com/ianlewis/go-stardict/issues/25))
 - The synonym index (.syn) file is now supported ([#2](https://github.com/ianlewis/go-stardict/issues/2))
-- The library now supports Go 1.20+
 
 ### Changed
 
