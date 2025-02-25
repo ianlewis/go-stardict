@@ -1,0 +1,70 @@
+# Copyright 2024 Google LLC
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#      http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+name: SLSA Go releaser
+on:
+  release:
+    types: [created]
+
+permissions: {}
+
+jobs:
+  # Validate the release and generate ldflags dynamically.
+  validate:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    outputs:
+      version: ${{ steps.ldflags.outputs.version }}
+    steps:
+      - id: checkout
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - id: ldflags
+        run: |
+          set -euo pipefail
+
+          version=$(git describe --tags --always --dirty)
+          exit_code=0
+          if ! grep "${version}" CHANGELOG.md >/dev/null; then
+            echo >&2 "${version} must be included in the CHANGELOG.md"
+            exit_code=1
+          fi
+
+          echo "version=$(echo "$version" | cut -c2-)" >> "$GITHUB_OUTPUT"
+          exit "${exit_code}"
+
+  build-sdutil:
+    name: sdutil-${{matrix.os}}-${{matrix.arch}}
+    needs: [validate]
+    strategy:
+      matrix:
+        os:
+          - linux
+          - windows
+          - darwin
+        arch:
+          - amd64
+          - arm64
+    permissions:
+      id-token: write # To sign.
+      contents: write # To upload release assets.
+      actions: read # To read workflow path.
+    uses: slsa-framework/slsa-github-generator/.github/workflows/builder_go_slsa3.yml@v2.0.0
+    with:
+      go-version-file: "go.mod"
+      config-file: ".slsa-goreleaser/dictzip-${{matrix.os}}-${{matrix.arch}}.yml"
+      evaluated-envs: "VERSION:${{needs.validate.outputs.version}}"
