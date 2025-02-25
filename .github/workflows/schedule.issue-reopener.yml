@@ -33,4 +33,4 @@ jobs:
         with:
           persist-credentials: false
       - name: Issue Reopener
-        uses: ianlewis/todo-issue-reopener@1a99cfd93fb95eb4f212a1ebaf3e9ef8ba4c46f8 # v1.4.0
+        uses: ianlewis/todo-issue-reopener@d55d48e44cb85664e436abf5bd49addb5b56b8b6 # v1.5.0
