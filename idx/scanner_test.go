@@ -87,7 +87,7 @@ func TestIdxScanner(t *testing.T) {
 			b := testutil.MakeIndex(test.expected, test.idxoffsetbits)
 
 			var words []*idx.Word
-			s, err := idx.NewScanner(io.NopCloser(bytes.NewReader(b)), &idx.Options{
+			s, err := idx.NewScanner(io.NopCloser(bytes.NewReader(b)), &idx.ScannerOptions{
 				OffsetBits: test.idxoffsetbits,
 			})
 			if err != nil {

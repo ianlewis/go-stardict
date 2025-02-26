@@ -106,7 +106,7 @@ idxfilesize=6`,
 				path := writeDict(t, td)
 				defer os.RemoveAll(path)
 
-				s, err := Open(filepath.Join(path, "dictionary.ifo"))
+				s, err := Open(filepath.Join(path, "dictionary.ifo"), nil)
 				if err != nil {
 					t.Fatalf("Open: %v", err)
 				}
@@ -205,7 +205,7 @@ idxfilesize=0`,
 						Data: []*dict.Data{
 							{
 								Type: dict.UTFTextType,
-								Data: []byte{'h', 'o', 'g', 'e'},
+								Data: []byte("hoge"),
 							},
 						},
 					},
@@ -232,7 +232,7 @@ idxfilesize=0`,
 					data: []*dict.Data{
 						{
 							Type: dict.UTFTextType,
-							Data: []byte{'h', 'o', 'g', 'e'},
+							Data: []byte("hoge"),
 						},
 					},
 				},
@@ -240,7 +240,7 @@ idxfilesize=0`,
 			err: nil,
 		},
 		{
-			name: "combined idx/syn search",
+			name: "combined idx syn search",
 			dict: &testDict{
 				ifo: `StarDict's dict ifo file
 version=3.0.0
@@ -304,6 +304,80 @@ idxfilesize=0`,
 			},
 			err: nil,
 		},
+		{
+			name: "folding idx syn search",
+			dict: &testDict{
+				ifo: `StarDict's dict ifo file
+version=3.0.0
+bookname=hoge
+wordcount=1
+idxfilesize=0`,
+				dict: []*dict.Word{
+					{
+						Data: []*dict.Data{
+							{
+								Type: dict.UTFTextType,
+								Data: []byte("hoge"),
+							},
+							{
+								Type: dict.UTFTextType,
+								Data: []byte("foo"),
+							},
+							{
+								Type: dict.UTFTextType,
+								Data: []byte("grussen"),
+							},
+						},
+					},
+				},
+				idx: []*idx.Word{
+					{
+						Word:   "hoge",
+						Offset: 0,
+						Size:   6,
+					},
+					{
+						Word:   "foo",
+						Offset: 6,
+						Size:   5,
+					},
+					{
+						Word:   "grüßen",
+						Offset: 11,
+						Size:   9,
+					},
+				},
+				syn: []*syn.Word{
+					{
+						Word:              "grussen",
+						OriginalWordIndex: 0,
+					},
+				},
+			},
+			query: "grussen",
+
+			expected: []*Entry{
+				{
+					word: "grüßen",
+					data: []*dict.Data{
+						{
+							Type: dict.UTFTextType,
+							Data: []byte("grussen"),
+						},
+					},
+				},
+				{
+					word: "hoge",
+					data: []*dict.Data{
+						{
+							Type: dict.UTFTextType,
+							Data: []byte("hoge"),
+						},
+					},
+				},
+			},
+			err: nil,
+		},
 	}
 
 	for _, test := range tests {
@@ -313,7 +387,7 @@ idxfilesize=0`,
 			path := writeDict(t, test.dict)
 			defer os.RemoveAll(path)
 
-			d, err := Open(filepath.Join(path, "dictionary.ifo"))
+			d, err := Open(filepath.Join(path, "dictionary.ifo"), nil)
 			if err != nil {
 				t.Fatalf("Open: %v", err)
 			}
