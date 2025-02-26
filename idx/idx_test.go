@@ -20,6 +20,7 @@ import (
 	"testing"
 
 	"github.com/google/go-cmp/cmp"
+	"golang.org/x/text/cases"
 
 	"github.com/ianlewis/go-stardict/idx"
 	"github.com/ianlewis/go-stardict/internal/testutil"
@@ -34,6 +35,7 @@ func TestIdx_Search(t *testing.T) {
 		query         string
 		idxWords      []*idx.Word
 		idxoffsetbits int
+		options       *idx.Options
 
 		expected []*idx.Word
 	}{
@@ -217,120 +219,15 @@ func TestIdx_Search(t *testing.T) {
 				},
 			},
 			idxoffsetbits: 32,
+			options: &idx.Options{
+				Folder: cases.Fold(),
+			},
 
 			expected: []*idx.Word{
 				{
 					// NOTE: The returned index word is the value in the index
 					//       and not the folded value.
 					Word: "Hoge",
-				},
-			},
-		},
-		{
-			name:  "folding german",
-			query: "grussen",
-			idxWords: []*idx.Word{
-				{
-					Word: "bar",
-				},
-				{
-					Word: "baz",
-				},
-				{
-					Word: "foo",
-				},
-				{
-					Word: "fuga",
-				},
-				{
-					Word: "grüßen",
-				},
-				{
-					Word: "Hoge",
-				},
-				{
-					Word: "pico",
-				},
-			},
-			idxoffsetbits: 32,
-
-			expected: []*idx.Word{
-				{
-					// NOTE: The returned index word is the value in the index
-					//       and not the folded value.
-					Word: "grüßen",
-				},
-			},
-		},
-		{
-			name:  "folding whitespace",
-			query: "\u3000 こんにちは \t 世界 \u3000 ",
-			idxWords: []*idx.Word{
-				{
-					Word: "bar",
-				},
-				{
-					Word: "baz",
-				},
-				{
-					Word: "こんにちは\u3000世界",
-				},
-				{
-					Word: "fuga",
-				},
-				{
-					Word: "grüßen",
-				},
-				{
-					Word: "Hoge",
-				},
-				{
-					Word: "pico",
-				},
-			},
-			idxoffsetbits: 32,
-
-			expected: []*idx.Word{
-				{
-					// NOTE: The returned index word is the value in the index
-					//       and not the folded value.
-					Word: "こんにちは\u3000世界",
-				},
-			},
-		},
-		{
-			name:  "folding punctuation",
-			query: "foo. bar?",
-			idxWords: []*idx.Word{
-				{
-					Word: "bar",
-				},
-				{
-					Word: "baz",
-				},
-				{
-					Word: "foo bar",
-				},
-				{
-					Word: "fuga",
-				},
-				{
-					Word: "grüßen",
-				},
-				{
-					Word: "Hoge",
-				},
-				{
-					Word: "pico",
-				},
-			},
-			idxoffsetbits: 32,
-
-			expected: []*idx.Word{
-				{
-					// NOTE: The returned index word is the value in the index
-					//       and not the folded value.
-					Word: "foo bar",
 				},
 			},
 		},
@@ -342,9 +239,7 @@ func TestIdx_Search(t *testing.T) {
 
 			b := testutil.MakeIndex(test.idxWords, test.idxoffsetbits)
 
-			index, err := idx.New(io.NopCloser(bytes.NewReader(b)), &idx.Options{
-				OffsetBits: test.idxoffsetbits,
-			})
+			index, err := idx.New(io.NopCloser(bytes.NewReader(b)), test.options)
 			if err != nil {
 				t.Fatalf("idx.New: %v", err)
 			}

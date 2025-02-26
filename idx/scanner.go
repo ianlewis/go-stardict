@@ -32,12 +32,23 @@ type Scanner struct {
 	idxoffsetbits int
 }
 
+// ScannerOptions are options for scanning an .idx file.
+type ScannerOptions struct {
+	// OffsetBits are the number of bits in the offset fields.
+	OffsetBits int
+}
+
+// DefaultScannerOptions is the default options for a Scanner.
+var DefaultScannerOptions = &ScannerOptions{
+	OffsetBits: 32,
+}
+
 // NewScanner return a new index scanner that scans the index from start to
 // end. The Scanner assumes ownership of the reader and should be closed with the
 // Close method.
-func NewScanner(r io.ReadCloser, options *Options) (*Scanner, error) {
+func NewScanner(r io.ReadCloser, options *ScannerOptions) (*Scanner, error) {
 	if options == nil {
-		options = DefaultOptions
+		options = DefaultScannerOptions
 	}
 
 	if options.OffsetBits != 32 && options.OffsetBits != 64 {
@@ -53,8 +64,8 @@ func NewScanner(r io.ReadCloser, options *Options) (*Scanner, error) {
 }
 
 // NewScannerFromIfoPath returns a new in-memory index.
-func NewScannerFromIfoPath(ifoPath string, options *Options) (*Scanner, error) {
-	f, err := openIdxFile(ifoPath)
+func NewScannerFromIfoPath(ifoPath string, options *ScannerOptions) (*Scanner, error) {
+	f, err := Open(ifoPath)
 	if err != nil {
 		return nil, err
 	}

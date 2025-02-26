@@ -15,21 +15,17 @@
 package syn
 
 import (
+	"compress/gzip"
 	"errors"
 	"fmt"
 	"io"
 	"os"
 	"path/filepath"
-	"sort"
 	"strings"
-	"unicode"
 
-	"golang.org/x/text/cases"
-	"golang.org/x/text/runes"
 	"golang.org/x/text/transform"
-	"golang.org/x/text/unicode/norm"
 
-	"github.com/ianlewis/go-stardict/internal/folding"
+	"github.com/ianlewis/go-stardict/internal/index"
 )
 
 // Word is a .syn file entry.
@@ -46,33 +42,42 @@ type foldedWord struct {
 	word   *Word
 }
 
+func (w *foldedWord) String() string {
+	return w.folded
+}
+
+// Options are options for the idx data.
+type Options struct {
+	// Folder is the transformer that performs folding on index entries.
+	Folder transform.Transformer
+}
+
+// DefaultOptions is the default options for a Syn.
+var DefaultOptions = &Options{
+	Folder: transform.Nop,
+}
+
 // Syn is is the synonym index. It is largely a map of synonym words to related
 // index entries.
 type Syn struct {
-	folded          []*foldedWord
+	// index is sorted by the folded word value.
+	index *index.Index[*foldedWord]
+
+	// foldTransformer performs folding on text.
 	foldTransformer transform.Transformer
 }
 
 // New returns a new Syn by reading the data from r.
-func New(r io.ReadCloser) (*Syn, error) {
+func New(r io.ReadCloser, options *Options) (*Syn, error) {
+	if options == nil {
+		options = DefaultOptions
+	}
+
 	syn := Syn{
-		foldTransformer: transform.Chain(
-			// Unicode Normalization Form D (Canonical Decomposition.
-			norm.NFD,
-			// Perform case folding.
-			cases.Fold(),
-			// Perform whitespace folding.
-			&folding.WhitespaceFolder{},
-			// Remove Non-spacing marks ([, ] {, }, etc.).
-			runes.Remove(runes.In(unicode.Mn)),
-			// Remove punctuation.
-			runes.Remove(runes.In(unicode.P)),
-			// Unicode Normalization Form C (Canonical Decomposition, followed by Canonical Composition)
-			// NOTE: Case folding does not normalize the input and may not
-			// preserve a normal form. Canonical Decomposition is thus necessary
-			// to be performed a second time.
-			norm.NFC,
-		),
+		foldTransformer: DefaultOptions.Folder,
+	}
+	if options.Folder != nil {
+		syn.foldTransformer = options.Folder
 	}
 
 	i := 0
@@ -80,6 +85,8 @@ func New(r io.ReadCloser) (*Syn, error) {
 	if err != nil {
 		return nil, fmt.Errorf("creating synonym index scanner: %w", err)
 	}
+
+	var words []*foldedWord
 	for s.Scan() {
 		word := s.Word()
 		folded, _, err := transform.String(syn.foldTransformer, word.Word)
@@ -87,7 +94,7 @@ func New(r io.ReadCloser) (*Syn, error) {
 			return nil, fmt.Errorf("folding word %q: %w", word.Word, err)
 		}
 
-		syn.folded = append(syn.folded, &foldedWord{
+		words = append(words, &foldedWord{
 			folded: folded,
 			word:   word,
 		})
@@ -98,28 +105,46 @@ func New(r io.ReadCloser) (*Syn, error) {
 	}
 
 	// We need to re-sort based on the folded word.
-	sort.Slice(syn.folded, func(i, j int) bool {
-		return syn.folded[i].folded < syn.folded[j].folded
-	})
+	syn.index = index.NewIndex(words, strings.Compare)
 
 	return &syn, nil
 }
 
 // NewFromIfoPath returns a new in-memory index.
-func NewFromIfoPath(ifoPath string) (*Syn, error) {
-	f, err := openSynFile(ifoPath)
+func NewFromIfoPath(ifoPath string, options *Options) (*Syn, error) {
+	var r io.ReadCloser
+	f, err := Open(ifoPath)
 	if err != nil {
 		return nil, err
 	}
-	return New(f)
+	r = f
+
+	idxExt := strings.ToLower(filepath.Ext(f.Name()))
+	if idxExt == ".gz" || idxExt == ".dz" {
+		r, err = gzip.NewReader(r)
+		if err != nil {
+			return nil, fmt.Errorf("creating .ifo gzip reader: %w", err)
+		}
+	}
+
+	return New(r, options)
 }
 
-func openSynFile(ifoPath string) (*os.File, error) {
+// Open opens the .syn file given the path to the .ifo file.
+func Open(ifoPath string) (*os.File, error) {
 	baseName := strings.TrimSuffix(ifoPath, filepath.Ext(ifoPath))
 
 	synExts := []string{
 		".syn",
+		".syn.gz",
+		".syn.GZ",
+		".syn.dz",
+		".syn.DZ",
 		".SYN",
+		".SYN.gz",
+		".SYN.GZ",
+		".SYN.dz",
+		".SYN.DZ",
 	}
 	var f *os.File
 	var err error
@@ -148,36 +173,12 @@ func (syn *Syn) Search(query string) ([]*Word, error) {
 		return nil, fmt.Errorf("folding query %q: %w", query, err)
 	}
 
-	start := 0
-	end := len(syn.folded) - 1
-	for start <= end {
-		pivot := (start + end) / 2
-		switch {
-		case syn.folded[pivot].folded < foldedQuery:
-			start = pivot + 1
-		case syn.folded[pivot].folded > foldedQuery:
-			end = pivot - 1
-		default:
-			// We have found a matching word.
-			// Multiple word entries may have the same value we must find the
-			// first and iterate over the index until we have found all matches.
-			i := pivot
-			for i > 0 && syn.folded[i-1].folded == foldedQuery {
-				i--
-			}
-			j := pivot
-			for j+1 < len(syn.folded) && syn.folded[j+1].folded == foldedQuery {
-				j++
-			}
+	result := syn.index.Search(foldedQuery)
 
-			var result []*Word
-			for ; i < j+1; i++ {
-				result = append(result, syn.folded[i].word)
-			}
-
-			return result, nil
-		}
+	var words []*Word
+	for _, w := range result {
+		words = append(words, w.word)
 	}
 
-	return nil, nil
+	return words, nil
 }

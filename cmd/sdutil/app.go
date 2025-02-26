@@ -81,7 +81,7 @@ func openStardicts(dirs []string) ([]*stardict.Stardict, []error) {
 	var errs []error
 
 	for _, path := range dirs {
-		openDicts, openErrs := stardict.OpenAll(path)
+		openDicts, openErrs := stardict.OpenAll(path, nil)
 
 		dicts = append(dicts, openDicts...)
 		errs = append(errs, openErrs...)

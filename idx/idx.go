@@ -1,4 +1,5 @@
 // Copyright 2021 Google LLC
+// Copyright 2025 Ian Lewis
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -21,19 +22,13 @@ import (
 	"io"
 	"os"
 	"path/filepath"
-	"sort"
 	"strings"
-	"unicode"
 
-	"golang.org/x/text/cases"
-	"golang.org/x/text/runes"
 	"golang.org/x/text/transform"
-	"golang.org/x/text/unicode/norm"
 
-	"github.com/ianlewis/go-stardict/internal/folding"
+	"github.com/ianlewis/go-stardict/internal/index"
+	"github.com/ianlewis/go-stardict/syn"
 )
-
-var errIndex = errors.New("invalid index")
 
 // Word is an .idx file entry.
 type Word struct {
@@ -52,15 +47,25 @@ type foldedWord struct {
 	word   *Word
 }
 
+func (w *foldedWord) String() string {
+	return w.folded
+}
+
 // Options are options for the idx data.
 type Options struct {
-	// OffsetBits are the number of bits in the offset fields.
-	OffsetBits int
+	// Folder is the transformer that performs folding on index entries.
+	Folder transform.Transformer
+
+	// ScannerOptions are the options to use when reading the .idx file.
+	ScannerOptions *ScannerOptions
 }
 
 // DefaultOptions is the default options for an Idx.
 var DefaultOptions = &Options{
-	OffsetBits: 32,
+	Folder: transform.Nop,
+	ScannerOptions: &ScannerOptions{
+		OffsetBits: 32,
+	},
 }
 
 // Idx is a very basic implementation of an in memory search index.
@@ -68,11 +73,8 @@ var DefaultOptions = &Options{
 // Scanner to read the .idx file and generate their own more robust search
 // index.
 type Idx struct {
-	// words is indexed by the original file index.
-	words []*Word
-
-	// folded is sorted by the folded word value.
-	folded []*foldedWord
+	// index is sorted by the folded word value.
+	index *index.Index[*foldedWord]
 
 	// foldTransformer performs folding on text.
 	foldTransformer transform.Transformer
@@ -80,61 +82,71 @@ type Idx struct {
 
 // New returns a new in-memory index.
 func New(r io.ReadCloser, options *Options) (*Idx, error) {
+	return NewWithSyn(r, nil, options)
+}
+
+// New returns a new in-memory index with synonyms merged in.
+func NewWithSyn(idxReader, synReader io.ReadCloser, options *Options) (*Idx, error) {
 	if options == nil {
 		options = DefaultOptions
 	}
 
 	idx := &Idx{
-		foldTransformer: transform.Chain(
-			// Unicode Normalization Form D (Canonical Decomposition.
-			norm.NFD,
-			// Perform case folding.
-			cases.Fold(),
-			// Perform whitespace folding.
-			&folding.WhitespaceFolder{},
-			// Remove Non-spacing marks ([, ] {, }, etc.).
-			runes.Remove(runes.In(unicode.Mn)),
-			// Remove punctuation.
-			runes.Remove(runes.In(unicode.P)),
-			// Unicode Normalization Form C (Canonical Decomposition, followed by Canonical Composition)
-			// NOTE: Case folding does not normalize the input and may not
-			// preserve a normal form. Canonical Decomposition is thus necessary
-			// to be performed a second time.
-			norm.NFC,
-		),
+		foldTransformer: DefaultOptions.Folder,
+	}
+	if options.Folder != nil {
+		idx.foldTransformer = options.Folder
 	}
 
 	i := 0
-	s, err := NewScanner(r, options)
+	s, err := NewScanner(idxReader, options.ScannerOptions)
 	if err != nil {
 		return nil, fmt.Errorf("creating index scanner: %w", err)
 	}
+
+	var words []*foldedWord
 	for s.Scan() {
 		word := s.Word()
 		folded, _, err := transform.String(idx.foldTransformer, word.Word)
 		if err != nil {
 			return nil, fmt.Errorf("folding word %q: %w", word.Word, err)
 		}
-		idx.words = append(idx.words, word)
-		idx.folded = append(idx.folded, &foldedWord{
+		words = append(words, &foldedWord{
 			folded: folded,
 			word:   word,
 		})
 		i++
 	}
 	if err := s.Err(); err != nil {
-		return nil, fmt.Errorf("scanning index %w", err)
+		return nil, fmt.Errorf("scanning index: %w", err)
 	}
 
-	// We need to re-sort based on the folded word.
-	sort.Slice(idx.folded, func(i, j int) bool {
-		return idx.folded[i].folded < idx.folded[j].folded
-	})
+	// Merge in options.Syn.
+	if synReader != nil {
+		synScanner, err := syn.NewScanner(synReader)
+		if err != nil {
+			return nil, fmt.Errorf("scanning synonym index: %w", err)
+		}
+		for synScanner.Scan() {
+			word := synScanner.Word()
+			folded, _, err := transform.String(idx.foldTransformer, word.Word)
+			if err != nil {
+				return nil, fmt.Errorf("folding word %q: %w", word.Word, err)
+			}
+			words = append(words, &foldedWord{
+				folded: folded,
+				word:   words[word.OriginalWordIndex].word,
+			})
+		}
+	}
+
+	idx.index = index.NewIndex(words, strings.Compare)
 
 	return idx, nil
 }
 
-func openIdxFile(ifoPath string) (*os.File, error) {
+// Open opens the .idx file given the path to the .ifo file.
+func Open(ifoPath string) (*os.File, error) {
 	baseName := strings.TrimSuffix(ifoPath, filepath.Ext(ifoPath))
 
 	idxExts := []string{
@@ -171,31 +183,37 @@ func openIdxFile(ifoPath string) (*os.File, error) {
 
 // NewFromIfoPath returns a new in-memory index.
 func NewFromIfoPath(ifoPath string, options *Options) (*Idx, error) {
-	var r io.ReadCloser
-	f, err := openIdxFile(ifoPath)
+	var idxReader, synReader io.ReadCloser
+	idxFile, err := Open(ifoPath)
 	if err != nil {
 		return nil, err
 	}
-	r = f
+	idxReader = idxFile
 
-	idxExt := strings.ToLower(filepath.Ext(f.Name()))
+	idxExt := strings.ToLower(filepath.Ext(idxFile.Name()))
 	if idxExt == ".gz" || idxExt == ".dz" {
-		r, err = gzip.NewReader(r)
+		idxReader, err = gzip.NewReader(idxReader)
 		if err != nil {
-			return nil, fmt.Errorf("creating .ifo gzip reader: %w", err)
+			return nil, fmt.Errorf("creating .idx gzip reader: %w", err)
 		}
 	}
 
-	return New(r, options)
-}
-
-// ByIndex returns the word at the original index in the .idx file.
-func (idx *Idx) ByIndex(i uint32) (*Word, error) {
-	intIndex := int(i)
-	if intIndex >= len(idx.words) {
-		return nil, fmt.Errorf("%w: %d", errIndex, intIndex)
+	synFile, err := syn.Open(ifoPath)
+	if err != nil {
+		//nolint:wrapcheck // it isn't necessary to wrap this error.
+		return nil, err
 	}
-	return idx.words[intIndex], nil
+	synReader = synFile
+
+	synExt := strings.ToLower(filepath.Ext(synFile.Name()))
+	if synExt == ".gz" || synExt == ".dz" {
+		synReader, err = gzip.NewReader(synReader)
+		if err != nil {
+			return nil, fmt.Errorf("creating .syn gzip reader: %w", err)
+		}
+	}
+
+	return NewWithSyn(idxReader, synReader, options)
 }
 
 // Search performs a query of the index and returns matching words.
@@ -205,36 +223,12 @@ func (idx *Idx) Search(query string) ([]*Word, error) {
 		return nil, fmt.Errorf("folding query %q: %w", query, err)
 	}
 
-	start := 0
-	end := len(idx.folded) - 1
-	for start <= end {
-		pivot := (start + end) / 2
-		switch {
-		case idx.folded[pivot].folded < foldedQuery:
-			start = pivot + 1
-		case idx.folded[pivot].folded > foldedQuery:
-			end = pivot - 1
-		default:
-			// We have found a matching word.
-			// Multiple word entries may have the same value we must find the
-			// first and iterate over the index until we have found all matches.
-			i := pivot
-			for i > 0 && idx.folded[i-1].folded == foldedQuery {
-				i--
-			}
-			j := pivot
-			for j+1 < len(idx.folded) && idx.folded[j+1].folded == foldedQuery {
-				j++
-			}
+	result := idx.index.Search(foldedQuery)
 
-			var result []*Word
-			for ; i < j+1; i++ {
-				result = append(result, idx.folded[i].word)
-			}
-
-			return result, nil
-		}
+	var words []*Word
+	for _, w := range result {
+		words = append(words, w.word)
 	}
 
-	return nil, nil
+	return words, nil
 }

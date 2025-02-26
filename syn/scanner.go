@@ -42,7 +42,7 @@ func NewScanner(r io.ReadCloser) (*Scanner, error) {
 
 // NewScannerFromIfoPath returns a new in-memory index.
 func NewScannerFromIfoPath(ifoPath string) (*Scanner, error) {
-	f, err := openSynFile(ifoPath)
+	f, err := Open(ifoPath)
 	if err != nil {
 		return nil, err
 	}

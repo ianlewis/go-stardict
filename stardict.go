@@ -22,10 +22,17 @@ import (
 	"path/filepath"
 	"strconv"
 	"strings"
+	"unicode"
+
+	"golang.org/x/text/cases"
+	"golang.org/x/text/runes"
+	"golang.org/x/text/transform"
+	"golang.org/x/text/unicode/norm"
 
 	"github.com/ianlewis/go-stardict/dict"
 	"github.com/ianlewis/go-stardict/idx"
 	"github.com/ianlewis/go-stardict/ifo"
+	"github.com/ianlewis/go-stardict/internal/folding"
 	"github.com/ianlewis/go-stardict/syn"
 )
 
@@ -53,6 +60,14 @@ type Stardict struct {
 	website          string
 	description      string
 	sametypesequence []dict.DataType
+
+	folder transform.Transformer
+}
+
+// Options are options for the Stardict dictionary.
+type Options struct {
+	// Folder performs folding (e.g. case folding, whitespace folding, etc.) on dictionary entries.
+	Folder transform.Transformer
 }
 
 var (
@@ -64,7 +79,7 @@ var (
 
 // OpenAll opens all dictionaries under a directory. This function will return
 // all successfully opened dictionaries along with any errors that occurred.
-func OpenAll(path string) ([]*Stardict, []error) {
+func OpenAll(path string, options *Options) ([]*Stardict, []error) {
 	var dicts []*Stardict
 	var errs []error
 	if err := filepath.WalkDir(path, func(path string, info fs.DirEntry, err error) error {
@@ -74,7 +89,7 @@ func OpenAll(path string) ([]*Stardict, []error) {
 			return nil
 		}
 		if !info.IsDir() && (filepath.Ext(info.Name()) == ".ifo" || filepath.Ext(info.Name()) == ".IFO") {
-			dict, err := Open(path)
+			dict, err := Open(path, options)
 			if err != nil {
 				errs = append(errs, err)
 				return nil
@@ -90,10 +105,37 @@ func OpenAll(path string) ([]*Stardict, []error) {
 }
 
 // Open opens a Stardict dictionary from the given .ifo file path.
-func Open(path string) (*Stardict, error) {
+func Open(path string, options *Options) (*Stardict, error) {
+	if options == nil {
+		options = &Options{
+			Folder: transform.Chain(
+				// Unicode Normalization Form D (Canonical Decomposition.
+				norm.NFD,
+				// Perform case folding.
+				cases.Fold(),
+				// Perform whitespace folding.
+				&folding.WhitespaceFolder{},
+				// Remove Non-spacing marks ([, ] {, }, etc.).
+				runes.Remove(runes.In(unicode.Mn)),
+				// Remove punctuation.
+				runes.Remove(runes.In(unicode.P)),
+				// Unicode Normalization Form C (Canonical Decomposition, followed by Canonical Composition)
+				// NOTE: Case folding does not normalize the input and may not
+				// preserve a normal form. Canonical Decomposition is thus necessary
+				// to be performed a second time.
+				norm.NFC,
+			),
+		}
+	}
+
 	s := &Stardict{
 		ifoPath:       path,
 		idxoffsetbits: 32,
+	}
+
+	s.folder = transform.Nop
+	if options.Folder != nil {
+		s.folder = options.Folder
 	}
 
 	ifoExt := filepath.Ext(s.ifoPath)
@@ -236,27 +278,6 @@ func (s *Stardict) Search(query string) ([]*Entry, error) {
 		return nil, fmt.Errorf("searching index: %w", err)
 	}
 
-	// Read synonym entries.
-	synonyms, err := s.Syn()
-	// Ignore if the syn file doesn't exist.
-	if err != nil && !errors.Is(err, fs.ErrNotExist) {
-		return nil, err
-	}
-
-	if err == nil {
-		synResults, synSearchErr := synonyms.Search(query)
-		if synSearchErr != nil {
-			return nil, fmt.Errorf("searching synonyms: %w", synSearchErr)
-		}
-		for _, synWord := range synResults {
-			w, synIndexErr := index.ByIndex(synWord.OriginalWordIndex)
-			if synIndexErr != nil {
-				return nil, fmt.Errorf("reading index: %w", synIndexErr)
-			}
-			idxResults = append(idxResults, w)
-		}
-	}
-
 	// Read the entries from the dict.
 	d, err := s.Dict()
 	if err != nil {
@@ -279,7 +300,7 @@ func (s *Stardict) Search(query string) ([]*Entry, error) {
 // the underlying reader so Close should be called on the scanner when
 // finished.
 func (s *Stardict) IndexScanner() (*idx.Scanner, error) {
-	sc, err := idx.NewScannerFromIfoPath(s.ifoPath, &idx.Options{
+	sc, err := idx.NewScannerFromIfoPath(s.ifoPath, &idx.ScannerOptions{
 		OffsetBits: s.idxoffsetbits,
 	})
 	if err != nil {
@@ -296,7 +317,10 @@ func (s *Stardict) Index() (*idx.Idx, error) {
 
 	// Open the .idx file.
 	index, err := idx.NewFromIfoPath(s.ifoPath, &idx.Options{
-		OffsetBits: s.idxoffsetbits,
+		Folder: s.folder,
+		ScannerOptions: &idx.ScannerOptions{
+			OffsetBits: s.idxoffsetbits,
+		},
 	})
 	if err != nil {
 		return nil, fmt.Errorf("opening index: %w", err)
@@ -313,7 +337,9 @@ func (s *Stardict) Syn() (*syn.Syn, error) {
 	}
 
 	// Open the .syn file.
-	synIndex, err := syn.NewFromIfoPath(s.ifoPath)
+	synIndex, err := syn.NewFromIfoPath(s.ifoPath, &syn.Options{
+		Folder: s.folder,
+	})
 	if err != nil {
 		return nil, fmt.Errorf("opening synonym index: %w", err)
 	}
