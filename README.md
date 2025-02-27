@@ -56,8 +56,11 @@ for _, d := range dictionaries {
 
 ## Related projects
 
-- [ilius/go-stardict](https://github.com/ilius/go-stardict)
-- [dyatlov/gostardict](https://github.com/dyatlov/gostardict)
+- [ilius/go-stardict](https://github.com/ilius/go-stardict) - Basic stardict library. Support for .ifo,.dict,.idx, and .syn. Some dictzip support.
+- [dyatlov/gostardict](https://github.com/dyatlov/gostardict) - Basic stardict library. Only .ifo,.dict,.ifo support. No dictzip support.
+- [rongyi/stardict](https://github.com/rongyi/stardict) - A nice terminal UI tool with some basic dictionary reading support. Only .ifo,.dict,.ifo support. No dictzip random-access support.
+- [wenerme/tools/pkg/stardict](https://github.com/wenerme/tools/tree/master/pkg/stardict) - Stardict tools. Only .ifo,.dict,.ifo support. No dictzip support.
+- [1-st/stardict](https://github.com/1-st/stardict) - Very bare-bones. Only .ifo,.dict,.ifo support. No dictzip support.
 
 ## References
 
