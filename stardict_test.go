@@ -1,4 +1,5 @@
 // Copyright 2021 Google LLC
+// Copyright 2025 Ian Lewis
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -20,6 +21,7 @@ import (
 	"testing"
 
 	"github.com/google/go-cmp/cmp"
+	"github.com/google/go-cmp/cmp/cmpopts"
 
 	"github.com/ianlewis/go-stardict/dict"
 	"github.com/ianlewis/go-stardict/idx"
@@ -66,6 +68,10 @@ func TestOpen(t *testing.T) {
 	tests := []struct {
 		name  string
 		dicts []*testDict
+
+		err       error
+		bookname  string
+		wordcount int64
 	}{
 		{
 			name: "basic open",
@@ -74,27 +80,27 @@ func TestOpen(t *testing.T) {
 					ifo: `StarDict's dict ifo file
 version=3.0.0
 bookname=hoge
-wordcount=1
+wordcount=123
 idxfilesize=6`,
-					idx: []*idx.Word{
-						{
-							Word:   "hoge",
-							Offset: 0,
-							Size:   6,
-						},
-					},
-					dict: []*dict.Word{
-						{
-							Data: []*dict.Data{
-								{
-									Type: dict.UTFTextType,
-									Data: []byte{'h', 'o', 'g', 'e'},
-								},
-							},
-						},
-					},
 				},
 			},
+
+			bookname:  "hoge",
+			wordcount: 123,
+		},
+		{
+			name: "invalid idxoffsetbits",
+			dicts: []*testDict{
+				{
+					ifo: `StarDict's dict ifo file
+version=3.0.0
+bookname=hoge
+wordcount=1
+idxfilesize=6
+idxoffsetbits=123`,
+				},
+			},
+			err: idx.ErrInvalidIdxOffset,
 		},
 	}
 
@@ -107,18 +113,19 @@ idxfilesize=6`,
 				defer os.RemoveAll(path)
 
 				s, err := Open(filepath.Join(path, "dictionary.ifo"), nil)
-				if err != nil {
-					t.Fatalf("Open: %v", err)
+				if diff := cmp.Diff(test.err, err, cmpopts.EquateErrors()); diff != "" {
+					t.Fatalf("Open: (-want, +got):\n%s", diff)
+				}
+				if test.err != nil {
+					continue
 				}
 
-				// Open the .idx file.
-				if _, err := s.Index(); err != nil {
-					t.Fatalf("Index: %v", err)
+				if diff := cmp.Diff(s.bookname, s.Bookname()); diff != "" {
+					t.Errorf("Bookname: (-want, +got):\n%s", diff)
 				}
 
-				// Open the .dict file.
-				if _, err := s.Dict(); err != nil {
-					t.Fatalf("Dict: %v", err)
+				if diff := cmp.Diff(s.wordcount, s.WordCount()); diff != "" {
+					t.Errorf("WordCount: (-want, +got):\n%s", diff)
 				}
 			}
 		})

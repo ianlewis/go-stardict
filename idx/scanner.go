@@ -23,7 +23,8 @@ import (
 	"io"
 )
 
-var errInvalidIdxOffset = errors.New("invalid idxoffsetbits")
+// ErrInvalidIdxOffset indicates that the OffsetBits is an invalid value.
+var ErrInvalidIdxOffset = errors.New("invalid idxoffsetbits")
 
 // Scanner scans an index from start to end.
 type Scanner struct {
@@ -34,7 +35,8 @@ type Scanner struct {
 
 // ScannerOptions are options for scanning an .idx file.
 type ScannerOptions struct {
-	// OffsetBits are the number of bits in the offset fields.
+	// OffsetBits are the number of bits in the offset fields. Valid values for
+	// OffsetBits are either 32 or 64.
 	OffsetBits int
 }
 
@@ -52,7 +54,7 @@ func NewScanner(r io.ReadCloser, options *ScannerOptions) (*Scanner, error) {
 	}
 
 	if options.OffsetBits != 32 && options.OffsetBits != 64 {
-		return nil, fmt.Errorf("%w: %v", errInvalidIdxOffset, options.OffsetBits)
+		return nil, fmt.Errorf("%w: %v", ErrInvalidIdxOffset, options.OffsetBits)
 	}
 	s := &Scanner{
 		r:             r,

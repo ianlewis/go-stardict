@@ -1,4 +1,5 @@
 // Copyright 2021 Google LLC
+// Copyright 2025 Ian Lewis
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -188,7 +189,10 @@ func Open(path string, options *Options) (*Stardict, error) {
 		var idxoffsetbits64 int64
 		idxoffsetbits64, err = strconv.ParseInt(idxoffsetbits, 10, 64)
 		if err != nil {
-			return nil, fmt.Errorf("invalid idxoffsetbits: %w", err)
+			return nil, fmt.Errorf("%w: %w", idx.ErrInvalidIdxOffset, err)
+		}
+		if idxoffsetbits64 != 32 && idxoffsetbits64 != 64 {
+			return nil, fmt.Errorf("%w: %d", idx.ErrInvalidIdxOffset, idxoffsetbits64)
 		}
 		s.idxoffsetbits = int(idxoffsetbits64)
 	}
