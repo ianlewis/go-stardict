@@ -93,6 +93,7 @@ linters-settings:
           - "github.com/ianlewis/go-stardict"
 
           # Dependencies.
+          - "github.com/gobwas/glob"
           - "github.com/ianlewis/go-dictzip"
           - "github.com/k3a/html2text"
           - "github.com/rodaine/table"
@@ -116,6 +117,7 @@ linters-settings:
           - "github.com/ianlewis/go-stardict"
 
           # Dependencies.
+          - "github.com/gobwas/glob"
           - "github.com/google/go-cmp/cmp"
           - "github.com/ianlewis/go-dictzip"
           - "github.com/k3a/html2text"

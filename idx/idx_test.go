@@ -20,6 +20,7 @@ import (
 	"testing"
 
 	"github.com/google/go-cmp/cmp"
+	"github.com/google/go-cmp/cmp/cmpopts"
 	"golang.org/x/text/cases"
 
 	"github.com/ianlewis/go-stardict/idx"
@@ -38,6 +39,7 @@ func TestIdx_Search(t *testing.T) {
 		options       *idx.Options
 
 		expected []*idx.Word
+		err      error
 	}{
 		{
 			name:          "empty index",
@@ -231,6 +233,110 @@ func TestIdx_Search(t *testing.T) {
 				},
 			},
 		},
+		{
+			name:  "glob search folded",
+			query: "Fu[G]A*",
+			idxWords: []*idx.Word{
+				{
+					Word: "bar",
+				},
+				{
+					Word: "baz",
+				},
+				{
+					Word: "foo",
+				},
+				{
+					Word: "fuga",
+				},
+				{
+					Word: "hoge",
+				},
+				{
+					Word: "pico",
+				},
+				{
+					Word: "fUga hoge",
+				},
+			},
+			idxoffsetbits: 32,
+			options: &idx.Options{
+				Folder: cases.Fold(),
+			},
+
+			// NOTE: The returned index word is the value in the index
+			//       and not the folded value.
+			expected: []*idx.Word{
+				{
+					Word: "fuga",
+				},
+				{
+					Word: "fUga hoge",
+				},
+			},
+		},
+		{
+			name:  "glob no prefix",
+			query: "*uga",
+			idxWords: []*idx.Word{
+				{
+					Word: "bar",
+				},
+				{
+					Word: "baz",
+				},
+				{
+					Word: "foo",
+				},
+				{
+					Word: "fuga",
+				},
+				{
+					Word: "hoge",
+				},
+				{
+					Word: "pico",
+				},
+			},
+			idxoffsetbits: 32,
+			options: &idx.Options{
+				Folder: cases.Fold(),
+			},
+
+			expected: nil,
+			err:      idx.ErrPrefix,
+		},
+		{
+			name:  "glob err",
+			query: "[fuga",
+			idxWords: []*idx.Word{
+				{
+					Word: "bar",
+				},
+				{
+					Word: "baz",
+				},
+				{
+					Word: "foo",
+				},
+				{
+					Word: "fuga",
+				},
+				{
+					Word: "hoge",
+				},
+				{
+					Word: "pico",
+				},
+			},
+			idxoffsetbits: 32,
+			options: &idx.Options{
+				Folder: cases.Fold(),
+			},
+
+			expected: nil,
+			err:      idx.ErrGlob,
+		},
 	}
 
 	for _, test := range tests {
@@ -245,7 +351,7 @@ func TestIdx_Search(t *testing.T) {
 			}
 
 			result, err := index.Search(test.query)
-			if diff := cmp.Diff(nil, err); diff != "" {
+			if diff := cmp.Diff(test.err, err, cmpopts.EquateErrors()); diff != "" {
 				t.Fatalf("b.Search (-want, +got):\n%s", diff)
 			}
 
