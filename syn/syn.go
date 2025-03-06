@@ -48,13 +48,16 @@ func (w *foldedWord) String() string {
 
 // Options are options for the idx data.
 type Options struct {
-	// Folder is the transformer that performs folding on index entries.
-	Folder transform.Transformer
+	// Folder returns a [transform.Transformer] that performs folding (e.g.
+	// case folding, whitespace folding, etc.) on index entries.
+	Folder func() transform.Transformer
 }
 
 // DefaultOptions is the default options for a Syn.
 var DefaultOptions = &Options{
-	Folder: transform.Nop,
+	Folder: func() transform.Transformer {
+		return transform.Nop
+	},
 }
 
 // Syn is is the synonym index. It is largely a map of synonym words to related
@@ -64,7 +67,7 @@ type Syn struct {
 	index *index.Index[*foldedWord]
 
 	// foldTransformer performs folding on text.
-	foldTransformer transform.Transformer
+	foldTransformer func() transform.Transformer
 }
 
 // New returns a new Syn by reading the data from r.
@@ -89,7 +92,7 @@ func New(r io.ReadCloser, options *Options) (*Syn, error) {
 	var words []*foldedWord
 	for s.Scan() {
 		word := s.Word()
-		folded, _, err := transform.String(syn.foldTransformer, word.Word)
+		folded, _, err := transform.String(syn.foldTransformer(), word.Word)
 		if err != nil {
 			return nil, fmt.Errorf("folding word %q: %w", word.Word, err)
 		}
@@ -168,7 +171,7 @@ func Open(ifoPath string) (*os.File, error) {
 
 // Search performs a query of the index and returns matching words.
 func (syn *Syn) Search(query string) ([]*Word, error) {
-	foldedQuery, _, err := transform.String(syn.foldTransformer, query)
+	foldedQuery, _, err := transform.String(syn.foldTransformer(), query)
 	if err != nil {
 		return nil, fmt.Errorf("folding query %q: %w", query, err)
 	}

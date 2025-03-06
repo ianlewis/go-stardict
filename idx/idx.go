@@ -63,8 +63,9 @@ func (w *foldedWord) String() string {
 
 // Options are options for the idx data.
 type Options struct {
-	// Folder is the transformer that performs folding on index entries.
-	Folder transform.Transformer
+	// Folder returns a [transform.Transformer] that performs folding (e.g.
+	// case folding, whitespace folding, etc.) on index entries.
+	Folder func() transform.Transformer
 
 	// ScannerOptions are the options to use when reading the .idx file.
 	ScannerOptions *ScannerOptions
@@ -72,7 +73,9 @@ type Options struct {
 
 // DefaultOptions is the default options for an Idx.
 var DefaultOptions = &Options{
-	Folder: transform.Nop,
+	Folder: func() transform.Transformer {
+		return transform.Nop
+	},
 	ScannerOptions: &ScannerOptions{
 		OffsetBits: 32,
 	},
@@ -87,7 +90,7 @@ type Idx struct {
 	index *index.Index[*foldedWord]
 
 	// foldTransformer performs folding on text.
-	foldTransformer transform.Transformer
+	foldTransformer func() transform.Transformer
 }
 
 // New returns a new in-memory index.
@@ -117,7 +120,7 @@ func NewWithSyn(idxReader, synReader io.ReadCloser, options *Options) (*Idx, err
 	var words []*foldedWord
 	for s.Scan() {
 		word := s.Word()
-		folded, _, err := transform.String(idx.foldTransformer, word.Word)
+		folded, _, err := transform.String(idx.foldTransformer(), word.Word)
 		if err != nil {
 			return nil, fmt.Errorf("folding word %q: %w", word.Word, err)
 		}
@@ -139,7 +142,7 @@ func NewWithSyn(idxReader, synReader io.ReadCloser, options *Options) (*Idx, err
 		}
 		for synScanner.Scan() {
 			word := synScanner.Word()
-			folded, _, err := transform.String(idx.foldTransformer, word.Word)
+			folded, _, err := transform.String(idx.foldTransformer(), word.Word)
 			if err != nil {
 				return nil, fmt.Errorf("folding word %q: %w", word.Word, err)
 			}
@@ -304,7 +307,7 @@ func (idx *Idx) foldGlob(q string) (string, error) {
 		if syntax.Special(c) {
 			if !isSpecial {
 				if b.Len() > 0 {
-					w, _, err := transform.String(idx.foldTransformer, b.String())
+					w, _, err := transform.String(idx.foldTransformer(), b.String())
 					if err != nil {
 						return "", fmt.Errorf("folding query %q: %w", q, err)
 					}
@@ -330,7 +333,7 @@ func (idx *Idx) foldGlob(q string) (string, error) {
 	w := b.String()
 	if !isSpecial {
 		// fold the word
-		fw, _, err := transform.String(idx.foldTransformer, w)
+		fw, _, err := transform.String(idx.foldTransformer(), w)
 		if err != nil {
 			return "", fmt.Errorf("folding query %q: %w", q, err)
 		}

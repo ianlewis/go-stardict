@@ -62,13 +62,14 @@ type Stardict struct {
 	description      string
 	sametypesequence []dict.DataType
 
-	folder transform.Transformer
+	folder func() transform.Transformer
 }
 
 // Options are options for the Stardict dictionary.
 type Options struct {
-	// Folder performs folding (e.g. case folding, whitespace folding, etc.) on dictionary entries.
-	Folder transform.Transformer
+	// Folder returns a [transform.Transformer] that performs folding (e.g.
+	// case folding, whitespace folding, etc.) on dictionary entries.
+	Folder func() transform.Transformer
 }
 
 var (
@@ -109,23 +110,25 @@ func OpenAll(path string, options *Options) ([]*Stardict, []error) {
 func Open(path string, options *Options) (*Stardict, error) {
 	if options == nil {
 		options = &Options{
-			Folder: transform.Chain(
-				// Unicode Normalization Form D (Canonical Decomposition.
-				norm.NFD,
-				// Perform case folding.
-				cases.Fold(),
-				// Perform whitespace folding.
-				&folding.WhitespaceFolder{},
-				// Remove Non-spacing marks ([, ] {, }, etc.).
-				runes.Remove(runes.In(unicode.Mn)),
-				// Remove punctuation.
-				runes.Remove(runes.In(unicode.P)),
-				// Unicode Normalization Form C (Canonical Decomposition, followed by Canonical Composition)
-				// NOTE: Case folding does not normalize the input and may not
-				// preserve a normal form. Canonical Decomposition is thus necessary
-				// to be performed a second time.
-				norm.NFC,
-			),
+			Folder: func() transform.Transformer {
+				return transform.Chain(
+					// Unicode Normalization Form D (Canonical Decomposition.
+					norm.NFD,
+					// Perform case folding.
+					cases.Fold(),
+					// Perform whitespace folding.
+					&folding.WhitespaceFolder{},
+					// Remove Non-spacing marks ([, ] {, }, etc.).
+					runes.Remove(runes.In(unicode.Mn)),
+					// Remove punctuation.
+					runes.Remove(runes.In(unicode.P)),
+					// Unicode Normalization Form C (Canonical Decomposition, followed by Canonical Composition)
+					// NOTE: Case folding does not normalize the input and may not
+					// preserve a normal form. Canonical Decomposition is thus necessary
+					// to be performed a second time.
+					norm.NFC,
+				)
+			},
 		}
 	}
 
@@ -134,7 +137,9 @@ func Open(path string, options *Options) (*Stardict, error) {
 		idxoffsetbits: 32,
 	}
 
-	s.folder = transform.Nop
+	s.folder = func() transform.Transformer {
+		return transform.Nop
+	}
 	if options.Folder != nil {
 		s.folder = options.Folder
 	}
