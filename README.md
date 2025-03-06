@@ -9,9 +9,7 @@ A stardict dictionary library for Go.
 
 ## Status
 
-The API is currently _unstable_ and will change. This package will use [module
-version numbering](https://golang.org/doc/modules/version-numbers) to manage
-versions and compatibility.
+The API is currently _unstable_ and will change. This package will use [module version numbering](https://golang.org/doc/modules/version-numbers) to manage versions and compatibility.
 
 ## Features
 
