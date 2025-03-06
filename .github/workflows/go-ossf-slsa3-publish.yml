@@ -66,5 +66,5 @@ jobs:
     uses: slsa-framework/slsa-github-generator/.github/workflows/builder_go_slsa3.yml@v2.1.0
     with:
       go-version-file: "go.mod"
-      config-file: ".slsa-goreleaser/dictzip-${{matrix.os}}-${{matrix.arch}}.yml"
+      config-file: ".slsa-goreleaser/sdutil-${{matrix.os}}-${{matrix.arch}}.yml"
       evaluated-envs: "VERSION:${{needs.validate.outputs.version}}"
