@@ -267,8 +267,35 @@ func (s *Stardict) Version() string {
 	return s.version
 }
 
-// Search performs a simple full text search of the dictionary for the
-// given query and returns dictionary entries.
+// Search performs a simple full text search of the dictionary for the given
+// query and returns dictionary entries. The query supports glob patterns whose
+// pattern syntax is:
+//
+//	pattern:
+//	    { term }
+//
+//	term:
+//	    `*`         matches any sequence of non-separator characters
+//	    `**`        matches any sequence of characters
+//	    `?`         matches any single non-separator character
+//	    `[` [ `!` ] { character-range } `]`
+//	                character class (must be non-empty)
+//	    `{` pattern-list `}`
+//	                pattern alternatives
+//	    c           matches character c (c != `*`, `**`, `?`, `\`, `[`, `{`, `}`)
+//	    `\` c       matches character c
+//
+//	character-range:
+//	    c           matches character c (c != `\\`, `-`, `]`)
+//	    `\` c       matches character c
+//	    lo `-` hi   matches character c for lo <= c <= hi
+//
+//	pattern-list:
+//	    pattern { `,` pattern }
+//	                comma-separated (without spaces) patterns
+//
+// The pattern is folded using the given folding transformer and matches the
+// folded word in the index.
 func (s *Stardict) Search(query string) ([]*Entry, error) {
 	var entries []*Entry
 

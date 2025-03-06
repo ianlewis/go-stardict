@@ -51,8 +51,11 @@ func writeDict(t *testing.T, d *testDict) string {
 	if err := os.WriteFile(filepath.Join(path, "dictionary.idx"), testutil.MakeIndex(d.idx, 32), 0o600); err != nil {
 		panic(err)
 	}
-	if err := os.WriteFile(filepath.Join(path, "dictionary.syn"), testutil.MakeSyn(t, d.syn), 0o600); err != nil {
-		panic(err)
+	// NOTE: syn is optional.
+	if len(d.syn) > 0 {
+		if err := os.WriteFile(filepath.Join(path, "dictionary.syn"), testutil.MakeSyn(t, d.syn), 0o600); err != nil {
+			panic(err)
+		}
 	}
 	if err := os.WriteFile(filepath.Join(path, "dictionary.dict"), testutil.MakeDict(t, d.dict, nil), 0o600); err != nil {
 		panic(err)

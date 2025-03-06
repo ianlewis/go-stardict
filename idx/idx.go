@@ -24,10 +24,20 @@ import (
 	"path/filepath"
 	"strings"
 
+	"github.com/gobwas/glob"
+	"github.com/gobwas/glob/syntax"
 	"golang.org/x/text/transform"
 
 	"github.com/ianlewis/go-stardict/internal/index"
 	"github.com/ianlewis/go-stardict/syn"
+)
+
+var (
+	// ErrPrefix indicates that the query must not start with a glob wildcard.
+	ErrPrefix = errors.New("search query must not start with wildcard")
+
+	// ErrGlob indicates an error with a glob search query.
+	ErrGlob = errors.New("invalid glob query")
 )
 
 // Word is an .idx file entry.
@@ -140,7 +150,7 @@ func NewWithSyn(idxReader, synReader io.ReadCloser, options *Options) (*Idx, err
 		}
 	}
 
-	idx.index = index.NewIndex(words, strings.Compare)
+	idx.index = index.NewIndex(words, prefixCmp)
 
 	return idx, nil
 }
@@ -199,36 +209,144 @@ func NewFromIfoPath(ifoPath string, options *Options) (*Idx, error) {
 	}
 
 	synFile, err := syn.Open(ifoPath)
-	if err != nil {
-		//nolint:wrapcheck // it isn't necessary to wrap this error.
-		return nil, err
-	}
-	synReader = synFile
-
-	synExt := strings.ToLower(filepath.Ext(synFile.Name()))
-	if synExt == ".gz" || synExt == ".dz" {
-		synReader, err = gzip.NewReader(synReader)
+	if !errors.Is(err, os.ErrNotExist) {
 		if err != nil {
-			return nil, fmt.Errorf("creating .syn gzip reader: %w", err)
+			//nolint:wrapcheck // it isn't necessary to wrap this error.
+			return nil, err
+		}
+		synReader = synFile
+
+		synExt := strings.ToLower(filepath.Ext(synFile.Name()))
+		if synExt == ".gz" || synExt == ".dz" {
+			synReader, err = gzip.NewReader(synReader)
+			if err != nil {
+				return nil, fmt.Errorf("creating .syn gzip reader: %w", err)
+			}
 		}
 	}
 
 	return NewWithSyn(idxReader, synReader, options)
 }
 
-// Search performs a query of the index and returns matching words.
+// Search performs a query of the index and returns matching words. The query
+// supports glob patterns whose pattern syntax is:
+//
+//	pattern:
+//	    { term }
+//
+//	term:
+//	    `*`         matches any sequence of non-separator characters
+//	    `**`        matches any sequence of characters
+//	    `?`         matches any single non-separator character
+//	    `[` [ `!` ] { character-range } `]`
+//	                character class (must be non-empty)
+//	    `{` pattern-list `}`
+//	                pattern alternatives
+//	    c           matches character c (c != `*`, `**`, `?`, `\`, `[`, `{`, `}`)
+//	    `\` c       matches character c
+//
+//	character-range:
+//	    c           matches character c (c != `\\`, `-`, `]`)
+//	    `\` c       matches character c
+//	    lo `-` hi   matches character c for lo <= c <= hi
+//
+//	pattern-list:
+//	    pattern { `,` pattern }
+//	                comma-separated (without spaces) patterns
+//
+// The pattern is folded using the given folding transformer and matches the
+// folded word in the index.
 func (idx *Idx) Search(query string) ([]*Word, error) {
-	foldedQuery, _, err := transform.String(idx.foldTransformer, query)
+	foldedQuery, err := idx.foldGlob(query)
 	if err != nil {
-		return nil, fmt.Errorf("folding query %q: %w", query, err)
+		return nil, err
 	}
 
-	result := idx.index.Search(foldedQuery)
+	g, err := glob.Compile(foldedQuery)
+	if err != nil {
+		return nil, fmt.Errorf("%w: %q", ErrGlob, query)
+	}
+
+	// Get the prefix to the query.
+	var b strings.Builder
+	for _, r := range foldedQuery {
+		if syntax.Special(byte(r)) {
+			break
+		}
+		b.WriteRune(r)
+	}
+	prefix := b.String()
+	if prefix == "" {
+		return nil, fmt.Errorf("%w: %q", ErrPrefix, query)
+	}
+
+	// Get all results with the static prefix.
+	result := idx.index.Search(prefix)
 
 	var words []*Word
 	for _, w := range result {
-		words = append(words, w.word)
+		if g.Match(w.folded) {
+			words = append(words, w.word)
+		}
 	}
 
 	return words, nil
+}
+
+// foldGlob performs folding on glob non-special characters.
+func (idx *Idx) foldGlob(q string) (string, error) {
+	var s []string
+
+	var b strings.Builder
+	var isSpecial bool
+	for i := 0; i < len(q); i++ {
+		c := q[i]
+		if syntax.Special(c) {
+			if !isSpecial {
+				if b.Len() > 0 {
+					w, _, err := transform.String(idx.foldTransformer, b.String())
+					if err != nil {
+						return "", fmt.Errorf("folding query %q: %w", q, err)
+					}
+
+					s = append(s, w)
+				}
+				isSpecial = true
+				b.Reset()
+			}
+		} else {
+			if isSpecial {
+				if b.Len() > 0 {
+					s = append(s, b.String())
+				}
+				isSpecial = false
+				b.Reset()
+			}
+		}
+
+		b.WriteByte(c)
+	}
+
+	w := b.String()
+	if !isSpecial {
+		// fold the word
+		fw, _, err := transform.String(idx.foldTransformer, w)
+		if err != nil {
+			return "", fmt.Errorf("folding query %q: %w", q, err)
+		}
+		w = fw
+	}
+	if b.Len() > 0 {
+		s = append(s, w)
+	}
+
+	return strings.Join(s, ""), nil
+}
+
+func prefixCmp(a, b string) int {
+	if strings.HasPrefix(b, a) {
+		return 0
+	}
+
+	return strings.Compare(a, b)
 }

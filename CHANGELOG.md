@@ -11,6 +11,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - The index now supports whitespace and punctuation folding ([#25](https://github.com/ianlewis/go-stardict/issues/25))
 - The synonym index (.syn) file is now supported ([#2](https://github.com/ianlewis/go-stardict/issues/2))
+- `Stardict.Search` and `Idx.Search` now support queries in glob format ([#21](https://github.com/ianlewis/go-stardict/issues/21))
 
 ### Changed
 
