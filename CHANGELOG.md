@@ -9,13 +9,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- The index now supports whitespace and punctuation folding ([#25](https://github.com/ianlewis/go-stardict/issues/25))
-- The synonym index (.syn) file is now supported ([#2](https://github.com/ianlewis/go-stardict/issues/2))
-- `Stardict.Search` and `Idx.Search` now support queries in glob format ([#21](https://github.com/ianlewis/go-stardict/issues/21))
+- The index now supports whitespace and punctuation folding ([#25](https://github.com/ianlewis/go-stardict/issues/25)).
+- The synonym index (.syn) file is now supported ([#2](https://github.com/ianlewis/go-stardict/issues/2)).
+- `Stardict.Search` and `Idx.Search` now support queries in glob format ([#21](https://github.com/ianlewis/go-stardict/issues/21)).
 
 ### Changed
 
 - The minimum supported Go version is now 1.23.
+- `stardict.Open` and `stardict.OpenAll` now take an `options` argument which allows for specifying options for opening dictionaries ([#87](https://github.com/ianlewis/go-stardict/issues/87)).
+- `stardict.idx.Options.Folder` is now a constructor `func() transform.Transformer` rather than a static `golang.org/x/text/transform.Transformer` value ([#87](https://github.com/ianlewis/go-stardict/issues/87)).
 
 ## [0.1.0] - 2024-11-04
 

@@ -22,6 +22,7 @@ import (
 	"github.com/google/go-cmp/cmp"
 	"github.com/google/go-cmp/cmp/cmpopts"
 	"golang.org/x/text/cases"
+	"golang.org/x/text/transform"
 
 	"github.com/ianlewis/go-stardict/idx"
 	"github.com/ianlewis/go-stardict/internal/testutil"
@@ -222,7 +223,9 @@ func TestIdx_Search(t *testing.T) {
 			},
 			idxoffsetbits: 32,
 			options: &idx.Options{
-				Folder: cases.Fold(),
+				Folder: func() transform.Transformer {
+					return cases.Fold()
+				},
 			},
 
 			expected: []*idx.Word{
@@ -261,7 +264,9 @@ func TestIdx_Search(t *testing.T) {
 			},
 			idxoffsetbits: 32,
 			options: &idx.Options{
-				Folder: cases.Fold(),
+				Folder: func() transform.Transformer {
+					return cases.Fold()
+				},
 			},
 
 			// NOTE: The returned index word is the value in the index
@@ -300,7 +305,9 @@ func TestIdx_Search(t *testing.T) {
 			},
 			idxoffsetbits: 32,
 			options: &idx.Options{
-				Folder: cases.Fold(),
+				Folder: func() transform.Transformer {
+					return cases.Fold()
+				},
 			},
 
 			expected: nil,
@@ -331,7 +338,9 @@ func TestIdx_Search(t *testing.T) {
 			},
 			idxoffsetbits: 32,
 			options: &idx.Options{
-				Folder: cases.Fold(),
+				Folder: func() transform.Transformer {
+					return cases.Fold()
+				},
 			},
 
 			expected: nil,
