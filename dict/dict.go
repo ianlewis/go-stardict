@@ -247,7 +247,7 @@ func NewFromIfoPath(ifoPath string, options *Options) (*Dict, error) {
 // dictionary.
 func (d *Dict) Word(e *idx.Word) (*Word, error) {
 	b := make([]byte, e.Size)
-	// TODO(#9): Support dictionary word offsets math.MaxInt64 > x < math.MaxUint64
+	// NOTE: Dictionary word offsets math.MaxInt64 < x < math.MaxUint64 not supported.
 	if e.Offset > math.MaxInt64 {
 		return nil, fmt.Errorf("%w: %d", errWordOffsetTooLarge, e.Offset)
 	}
